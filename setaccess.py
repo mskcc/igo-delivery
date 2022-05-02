@@ -44,12 +44,12 @@ class RequestPermissions:
         self.request_name = requestName
         self.request_members = request_members  # individuals/groups granted read access to the request
         self.groups = groups  # groups that need access per request
-        self.dataAccessEmails = dataAccessEmails
+        self.data_access_emails = list(dataAccessEmails)
         self.fastqs = fastqs  # list of fastqs per request
 
-        if "DLP" == self.request_name:
-            print("DLP requests must give access to " + DLP_REQUIRED_ACCESS_LIST)
-            self.dataAccessEmails.append(DLP_REQUIRED_ACCESS_LIST)
+        if self.request_name == "DLP":
+            print("DLP requests must give access to {} ".format(DLP_REQUIRED_ACCESS_LIST))
+            self.data_access_emails.extend(DLP_REQUIRED_ACCESS_LIST)
 
     # Grants ACLs to all fastq.gz files in a project, parent folders for the fastqs and SampleSheet.csv
     # For DLP runs ending in 'DLP' DIANA_0294_AHTGLJDSXY_DLP, grants read access to the 'Reports' and 'Stats' folders
@@ -152,9 +152,9 @@ class RequestPermissions:
 
         # Already filtered via ngs_stats code -
         # email.endsWith("mskcc.org") & & !email.contains("zzPDL")) then dataAccessIDs.add(email.split("@")[0])
-        print("Adding data access emails {}".format(self.dataAccessEmails))
-        for email_id in self.dataAccessEmails:
-            email_id = email_id.strip()
+        print("Adding data access emails {}".format(self.data_access_emails))
+        for email_id in self.data_access_emails:
+            email_id = str(email_id).strip()
             if email_id != "skicmopm":
                 users_set.add(email_id.lower())
 
