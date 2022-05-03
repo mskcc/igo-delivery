@@ -83,6 +83,26 @@ def main():
     json_info = get_NGS_stats(reqID)
     stats = NGS_Stats(json_info)
     labName = stats.labName
+    
+    # check if lab folder exist, if not create one
+    labDir = "/igo/delivery/share/%s" % (labName)
+    projDir = "/igo/delivery/share/%s/Project_%s" % (labName, reqID)
+    if not os.path.exists(labDir):
+        cmd = "mkdir " + labDir
+        subprocess.run(cmd, shell=True)
+        self.output("chmod +rx " + labDir)  # piDir is always readable by all, Project dirs are not
+
+    # then change project dirs to not world readable
+    mask = 0o007
+    # Set the current umask value and get the previous umask value
+    umask = os.umask(mask)
+    print("Current umask:", mask)
+    print("Previous umask:", umask)
+
+    if not os.path.exists(projDir):
+        cmd = "mkdir " + projDir
+        subprocess.run(cmd, shell=True)
+
     madeDir = []
     # create symbol links for each sample
     for sample, runs in stats.samples.items():
@@ -91,14 +111,14 @@ def main():
             dlink = DELIVERY_ROOT % (labName, reqID, trimRunID(run))
             # check if lab/project/run folder exist, if not create one
             if not os.path.exists(dlink) and dlink not in madeDir:
-                cmd = "mkdir -p " + dlink
+                cmd = "mkdir " + dlink
                 print (cmd)
                 madeDir.append(dlink)
-                subprocess.run(cmd)
+                subprocess.run(cmd, shell=True)
             slink = FASTQ_ROOT % (run, reqID, sample)
             cmd = "ln -sf {} {}".format(slink, dlink)
             print (cmd)
-            subprocess.run(cmd)
+            subprocess.run(cmd, shell=True)
     
     setaccess.set_request_acls(reqID)
 
