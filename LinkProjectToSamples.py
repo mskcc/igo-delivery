@@ -1,5 +1,4 @@
 import requests
-from requests.exceptions import HTTPError
 import json
 import re
 from os import listdir
@@ -7,10 +6,8 @@ import os.path
 import glob
 import subprocess
 import time
-from collections import defaultdict
 import sys
 import smtplib
-from email.mime.text import MIMEText
 import setaccess
 
 NGS_STATS_ENDPOINT = "http://delphi.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
@@ -73,10 +70,7 @@ def updateRun(runs, reqID, sample):
 
     return updatedRuns
 
-# Adding pytest, pytest cov
 # DLP has different rule for linking no linking for samples
-# MissionBio DNA+ protein as test case(11116_S)
-
 # step 1 get project ID as input, query from db to get fastq list eg :http://delphi.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/13117_B
 # step 2 create symbol links eg: ln -sf /igo/delivery/FASTQ/RUTH_0089_AHHLYJDSX3/Project_13117_B/Sample_HCTWT1_IGO_13117_B_1 /igo/delivery/share/bakhoums/Project_13117_B/RUTH_0089
 # step 3 call setaccess
