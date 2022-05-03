@@ -90,7 +90,8 @@ def main():
     if not os.path.exists(labDir):
         cmd = "mkdir " + labDir
         subprocess.run(cmd, shell=True)
-        self.output("chmod +rx " + labDir)  # piDir is always readable by all, Project dirs are not
+        cmd = "chmod +rx " + labDir  
+        subprocess.run(cmd, shell=True) # piDir is always readable by all, Project dirs are not
 
     # then change project dirs to not world readable
     mask = 0o007
