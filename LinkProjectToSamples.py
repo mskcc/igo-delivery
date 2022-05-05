@@ -74,12 +74,7 @@ def updateRun(runs, reqID, sample):
 # step 1 get project ID as input, query from db to get fastq list eg :http://delphi.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/13117_B
 # step 2 create symbol links eg: ln -sf /igo/delivery/FASTQ/RUTH_0089_AHHLYJDSX3/Project_13117_B/Sample_HCTWT1_IGO_13117_B_1 /igo/delivery/share/bakhoums/Project_13117_B/RUTH_0089
 # step 3 call setaccess
-def main():
-    if (len(sys.argv) != 2):
-        print("Usage: python3 LinkProjectToSamples.py requestID")
-        return
-
-    reqID = sys.argv[1]
+def main(reqID):
     json_info = get_NGS_stats(reqID)
     stats = NGS_Stats(json_info)
     labName = stats.labName
@@ -124,4 +119,8 @@ def main():
     setaccess.set_request_acls(reqID)
 
 if __name__ == '__main__':
-    main()
+    if (len(sys.argv) != 2):
+        print("Usage: python3 LinkProjectToSamples.py requestID")
+    else:
+        reqID = sys.argv[1]
+        main(reqID)
