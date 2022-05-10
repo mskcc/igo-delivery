@@ -46,6 +46,7 @@ class RequestPermissions:
         self.groups = groups  # groups that need access per request
         self.data_access_emails = list(dataAccessEmails)
         self.fastqs = fastqs  # list of fastqs per request
+        self.request_share_path = LAB_SHARE_PATH + self.lab + "/Project_" + self.request
 
         if self.request_name == "DLP":
             print("DLP requests must give access to {} ".format(DLP_REQUIRED_ACCESS_LIST))
@@ -75,11 +76,13 @@ class RequestPermissions:
         project_folders = set()
         for sample_folder in sample_folders:
             set_acl_command = "{} {}".format(command_prefix, sample_folder)
-            project_folders.add(Path(sample_folder).parent)
+            parent_path = Path(sample_folder).parent
+            if str(parent_path).startswith("Project_"):
+                project_folders.add(parent_path)
             print(set_acl_command)
             result = os.system(set_acl_command)
             if result != 0:
-                print("ERROR SETTING ACL - ".format(set_acl_command))
+                print("ERROR SETTING ACL at sample level - ".format(set_acl_command))
             sample_sheet = sample_folder.joinpath(Path("SampleSheet.csv"))
             if sample_sheet.exists():  # if SampleSheet.csv exists make it readable too
                 set_acl_command = "{} {}".format(command_prefix, sample_sheet)
@@ -89,45 +92,44 @@ class RequestPermissions:
                 set_acl_command_yaml = "{} {}/*.yaml".format(command_prefix, sample_folder)
                 print(set_acl_command_yaml)
                 os.system(set_acl_command_yaml)
-        # /igo/delivery/FASTQ/MICHELLE_0284_BHVKK3DMXX/Project_09641_AS
-        for project_folder in project_folders:
-            set_acl_command = "{} {}".format(command_prefix, project_folder)
-            print(set_acl_command)
-            result = os.system(set_acl_command)
-            if result != 0:
-                print("ERROR SETTING ACL - ".format(set_acl_command))
-            run_folder = str(project_folder.parent)
+            run_folder = str(sample_folder.parent)
             if run_folder.endswith("DLP"):
-                stats_folder = run_folder + "/Logs"
                 reports_folder = run_folder + "/Reports"
                 reports_status = os.stat(reports_folder)
                 # mask 4 means readable by all
                 if str(oct(reports_status.st_mode)[-1:]) == "4":
                     print("Reports folder {} is already readable by all".format(reports_folder))
                 else:
-                    chmod_command = "chmod -R +r {} {}".format(stats_folder, reports_folder)
-                    print(chmod_command)
-                    result = os.system(chmod_command)
+                    set_acl_reports = "nfs4_setfacl -R -S \"{}\" {}".format(temp_file_path, reports_folder)
+                    print(set_acl_reports)
+                    result = os.system(set_acl_reports)
+        # /igo/delivery/FASTQ/MICHELLE_0284_BHVKK3DMXX/Project_09641_AS
+        for project_folder in project_folders:
+            set_acl_command = "{} {}".format(command_prefix, project_folder)
+            print(set_acl_command)
+            result = os.system(set_acl_command)
+            if result != 0:
+                print("ERROR SETTING ACL at project level - ".format(set_acl_command))
 
     def grant_share_acls(self, temp_file_path):
         if self.request_share_exists():
-            print("Setting ACLS for all request share folders below " + self.request_share_path())
+            print("Setting ACLS for all request share folders below " + self.request_share_path)
             # nfs4_setfacl -R(recursive)
             # nfs4_setfacl -R -S "/igo/archive/FASTQ/acl_entries.txt" /igo/delivery/share/lab/request
-            set_acl_command = "nfs4_setfacl -R -S \"{}\" {}".format(temp_file_path, self.request_share_path())
+            set_acl_command = "nfs4_setfacl -R -S \"{}\" {}".format(temp_file_path, self.request_share_path)
             print(set_acl_command)
             result = os.system(set_acl_command)
             if result != 0:
                 print("ERROR SETTING ACL - ".format(set_acl_command))
             #verify lab directory is readable by all since it has no ACLs set
-            parent = os.path.dirname(self.request_share_path())
+            parent = os.path.dirname(self.request_share_path)
             mask = str(oct(os.stat(parent).st_mode)[-3:])
             if mask != "775":
                 command = "chmod +rx {}".format(parent)
                 print(command)
                 os.system(command)
         else:
-            print("{} share does not exist ".format(self.request_share_path()))
+            print("{} share does not exist ".format(self.request_share_path))
 
     # Write the file with the ACLs to a temp location
     def write_acl_temp_file(self):  # just leave the temp files around for possible reference later
@@ -137,7 +139,7 @@ class RequestPermissions:
         temp_file.close()
         # also write ACL file to the share dir if it exists for reference
         if self.request_share_exists():
-            acl_file_copy_path = self.request_share_path() + "/acl_permissions.txt"
+            acl_file_copy_path = self.request_share_path + "/acl_permissions.txt"
             print("Copying ACL permissions file to {}".format(acl_file_copy_path))
             shutil.copy(temp_file_path, acl_file_copy_path)
 
@@ -192,10 +194,7 @@ class RequestPermissions:
         return acls + owner_group_everyone
 
     def request_share_exists(self):
-        return os.path.isdir(self.request_share_path())
-
-    def request_share_path(self):
-        return LAB_SHARE_PATH + self.lab + "/Project_" + self.request
+        return os.path.isdir(self.request_share_path)
 
 
 def main():
