@@ -77,8 +77,7 @@ class RequestPermissions:
         for sample_folder in sample_folders:
             set_acl_command = "{} {}".format(command_prefix, sample_folder)
             parent_path = Path(sample_folder).parent
-            if str(parent_path).startswith("Project_"):
-                project_folders.add(parent_path)
+            project_folders.add(parent_path)
             print(set_acl_command)
             result = os.system(set_acl_command)
             if result != 0:
