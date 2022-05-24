@@ -152,8 +152,8 @@ def link_by_time(time):
         if len(toDeliver) == 0:
             print("No projects need to deliver during last {} mins".format(time))
         else:
-            # for req in toDeliver:
-            #     link_by_request(req)
+            for req in toDeliver:
+                link_by_request(req)
             print("{} projects are delivered".format(len(toDeliver)))
 
 if __name__ == '__main__':
