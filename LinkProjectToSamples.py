@@ -1,4 +1,5 @@
 import requests
+from requests.exceptions import HTTPError
 import json
 import re
 from os import listdir
@@ -74,7 +75,7 @@ def updateRun(runs, reqID, sample):
 # step 1 get project ID as input, query from db to get fastq list eg :http://delphi.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/13117_B
 # step 2 create symbol links eg: ln -sf /igo/delivery/FASTQ/RUTH_0089_AHHLYJDSX3/Project_13117_B/Sample_HCTWT1_IGO_13117_B_1 /igo/delivery/share/bakhoums/Project_13117_B/RUTH_0089
 # step 3 call setaccess
-def main(reqID):
+def link_by_request(reqID):
     json_info = get_NGS_stats(reqID)
     stats = NGS_Stats(json_info)
     labName = stats.labName
@@ -118,9 +119,52 @@ def main(reqID):
     
     setaccess.set_request_acls(reqID)
 
+# loop link_by_request method by time peirod, time as argument, unit will be min
+# step 1 get project list within time period by given time interval from LIMS eg: "https://igolims.mskcc.org:8443/LimsRest/getRecentDeliveries?time=30&units=m"
+# step 2 update the project list by removing the projects without sample information(DLP)
+# step 3 call link_by_request for each project in the updated list
+
+def get_recent_delivery(time):
+    file1 = open('restConnect.txt', 'r')
+    allLines = file1.readlines()
+    username = allLines[0].strip()
+    password = allLines[1].strip()
+    url = "https://igolims.mskcc.org:8443/LimsRest/getRecentDeliveries?time={}&units=m".format(time)
+    try:
+        response = requests.get(url, auth=(username, password), verify=False)
+        response.raise_for_status()
+        return response.json()
+
+    except HTTPError as http_err:
+        print(f'HTTP error occurred: {http_err}')
+
+def link_by_time(time):
+    deliver_list_orig = get_recent_delivery(time)
+    if deliver_list_orig is None:
+        print("check input")
+        return
+    else:
+        toDeliver = []
+        for possibleDelivered in deliver_list_orig:
+            if "samples" not in possibleDelivered:
+                continue
+            toDeliver.append(possibleDelivered['requestId'])
+        if len(toDeliver) == 0:
+            print("No projects need to deliver during last {} mins".format(time))
+        else:
+            for req in toDeliver:
+                link_by_request(req)
+            print("{} projects are delivered".format(len(toDeliver)))
+
 if __name__ == '__main__':
     if (len(sys.argv) != 2):
-        print("Usage: python3 LinkProjectToSamples.py requestID")
+        print("Usage: python3 LinkProjectToSamples.py REQUEST=<request> | TIME=<minutes>")
     else:
-        reqID = sys.argv[1]
-        main(reqID)
+        args = sys.argv[1]
+        if args.startswith("REQUEST="):
+            request = args[8:]
+            link_by_request(request)
+
+        if args.startswith("TIME="):
+            time = args[5:]
+            link_by_time(time)
