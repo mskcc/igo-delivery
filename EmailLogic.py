@@ -2,16 +2,6 @@ from MailStaticStrings import DEFAULT_ADDRESS, MSKCC_ADDRESS
 import DeliveryConstants
 import jinja2
 
-def getAllTemplates():
-    j2_env = jinja2.Environment(loader=jinja2.FileSystemLoader("."))
-    run2Template = {}
-    run2Template["AmpliconSeq"] = j2_env.get_template("AmpliconSeqTemplate.txt")
-    run2Template["AmpliSeq"] = j2_env.get_template("AmpliconSeqTemplate.txt")
-    run2Template["WESAnalysis"] = j2_env.get_template("WESAnalysisTemplate.txt")
-    run2Template["Generic"] = j2_env.get_template("GenericTemplate.txt")
-    return run2Template
-
-
 def newSampleInfo(deliveryDesc, mostRecentEmailDate):
     if len(deliveryDesc.deliveryDate) == 0:
         return False
@@ -27,45 +17,6 @@ def newSampleInfo(deliveryDesc, mostRecentEmailDate):
             if passing_date >= decisionDate:
                 return True
     return False
-
-
-def newRedelivery(deliveryDesc, mostRecentEmailDate):
-    print(mostRecentEmailDate, "mostRecentDelivery")
-    if len(deliveryDesc.deliveryDate) == 0:
-        print("Not marked for Delivery")
-        return False
-    if mostRecentEmailDate is None:
-        print("No previous email sent.")
-        return True
-    print(deliveryDesc.deliveryDate, "Dates it was marked for delivery")
-    mostRecentDelivery = max(deliveryDesc.deliveryDate)
-    print("picking between", mostRecentDelivery, mostRecentEmailDate)
-    if (int(mostRecentDelivery) > int(mostRecentEmailDate)):
-        print("more recent")
-        return True
-    return False
-
-
-def determineEmailRecipients(deliveryDesc, addressMap, emailAddress):
-    toList = emailAddress
-    ccList = addressMap['standard']
-    runType = deliveryDesc.recipe
-    if deliveryDesc.requestId.startswith("05500"):
-        toList = addressMap["ski"] 
-    elif runType.upper().startswith("IMPACT"):
-        toList = addressMap["pms_only"]
-        ccList = addressMap['impact']
-    elif deliveryDesc.pm != "" and deliveryDesc.analysisRequested:
-        toList = addressMap["pms_only"]
-    elif deliveryDesc.userName == MSKCC_ADDRESS:
-        toList = [DEFAULT_ADDRESS]
-    if deliveryDesc.analysisRequested:
-        ccList = addressMap['bic']
-    if runType.upper().startswith("MSK-ACCESS_V1"):
-        toList = addressMap["pms_only"]
-        ccList = addressMap["access"]
-    return (toList, ccList)
-
 
 def determineDataAccessRecipients(deliveryDesc, newAddressMap, recipients):
     toList = recipients
@@ -184,15 +135,3 @@ def recipe2RunType(recipe):
     if runType == "Agilent_MouseAllExonV1":
         runType = "WESAnalyis-Mouse"
     return runType
-
-
-def getTemplate(runType, delivered, run2Template):
-    if runType in run2Template and runType != "WESAnalysis":
-        template = run2Template[runType]
-    elif runType == "WESAnalysis" and delivered.analysisRequested:
-        template = run2Template[runType]
-    elif delivered.analysisRequested:
-        template = run2Template["Generic"]
-    else:
-        template = run2Template["Generic"]
-    return template

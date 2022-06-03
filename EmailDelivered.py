@@ -8,18 +8,15 @@ import os
 
 import setaccess
 import LinkProjectToSamples
-from Notifier import DevEmail, ProdEmail
-from DeliveryInfos import (
-    TestDeliveryInfo,
-    DevDeliveryInfo,
-    ProdDeliveryInfo,
-    DeliveryDescription,
-)
+from DeliveryHelpers import *
 from EmailLogic import *
 from DeliveryConstants import emailGroups, emailAddresses
 
-FOOTER = "<br><br>Thank you, <br><a href='http://genomics.mskcc.org/'>Integrated Genomics Operation</a><br><a href='https://www.mskcc.org'>Memorial Sloan Kettering Cancer Center</a><br>Follow us on <a href='https://www.instagram.com/genomics212/?hl=en'>Instagram</a> and <a href='https://twitter.com/genomics212?lang=en'>Twitter</a>!<br><br>Please rate your delivery experience <a href='https://genomics.mskcc.org/feedback/data-delivery'>here</a><br>"
-
+# main function part
+# TODO clean code to get rid of all old logic/function that didn't work
+# TODO remove dev mode
+# TODO put all constant variable into deliveryconstants file
+# TODO merge notifier?
 
 class HandleMappings:
     def __init__(self):
@@ -79,15 +76,12 @@ def mapRecipientLists(emailGroups, emailAddresses):
     return emailList
 
 
-ssl._create_default_https_context = ssl._create_unverified_context
+ssl._create_default_https_context = ssl._create_unverified_context # ?
 
-# read command line arguments
+# change to main function and read command line arguments
 mode = "TEST"
 if len(sys.argv) > 1:
     mode = sys.argv[1]
-if mode == "DEV":
-    deliveryInfo = DevDeliveryInfo()
-    notifier = DevEmail()
 elif mode == "TEST":
     deliveryInfo = TestDeliveryInfo()
     notifier = DevEmail()
@@ -112,7 +106,7 @@ with (open("ConnectLimsRest.txt")) as connectInfo:
     username = connectInfo.readline().strip()
     password = connectInfo.readline().strip()
 tracker = LinkProjectToSamples.TestTracker()
-deliveryInfo.setAliases(tracker.getAliases())
+deliveryInfo.setAliases(aliases)
 user_pass = username + ":" + password
 deliveries = deliveryInfo.recentDeliveries(base64.standard_b64encode(user_pass.encode('utf-8')), minutes)
 
@@ -132,57 +126,28 @@ for delivered in deliveries:
         # PI and Investigator always start out as recipients
         recipients = list(filter(lambda x: x != "", [delivered.piEmail, delivered.investigatorEmail]))
 
-        if (delivered.dataAccessEmails != "" or
-                (delivered.dataAccessEmails == "" and
-                 (delivered.additionalEmails == "" or delivered.additionalEmails == ","))):
-            useNewLogic = True
-            additionalRecipients = list(filter(lambda mail: mail not in recipients, delivered.dataAccessEmails.lower().split(",")))
-        else:
-            useNewLogic = False
-            additionalRecipients = list(filter(lambda mail: mail not in recipients, delivered.additionalEmails.lower().split(",")))
-
+        # maybe can be deleted
+        additionalRecipients = list(filter(lambda mail: mail not in recipients, delivered.dataAccessEmails.lower().split(",")))
         print("recipients {}, additional recipients {}".format(recipients, additionalRecipients))
         recipients = recipients + additionalRecipients
       
-        firstTime = False
-        # previously used special language for the first delivery to a pi, investigator email combination
-
-        if useNewLogic:
-            email = determineDataAccessContent(delivered, runType)
-            (toList, ccList) = determineDataAccessRecipients(delivered, copy.deepcopy(newAddressMap), recipients)
-            if runType == "DLP":
-                # query ngs_stats DB for all fastq paths for the project
-                request_metadata = setaccess.get_request_metadata(delivered.requestId)
-                # from all fastq paths get the fastq.gz folder only (probably 1 folder with all fastq.gz files)
-                fastq_directories = set()
-                for fastq in request_metadata.fastqs:
-                    fastq_directories.add(os.path.dirname(fastq))
-                sampleDirs = "<br><br>Fastq directories are:<br> {} <br>".format(fastq_directories)
-                email["content"] = email["content"] + sampleDirs + FOOTER;
-            else:
-                sampleList = "<br><br>Samples are:<br>"+"<br>".join(sorted(samples, key=lambda x: int(x.split("_")[-1])))
-                email["content"] = email["content"] + sampleList + FOOTER
+        email = determineDataAccessContent(delivered, runType)
+        (toList, ccList) = determineDataAccessRecipients(delivered, copy.deepcopy(newAddressMap), recipients)
+        if runType == "DLP":
+            # query ngs_stats DB for all fastq paths for the project
+            request_metadata = setaccess.get_request_metadata(delivered.requestId)
+            # from all fastq paths get the fastq.gz folder only (probably 1 folder with all fastq.gz files)
+            fastq_directories = set()
+            for fastq in request_metadata.fastqs:
+                fastq_directories.add(os.path.dirname(fastq))
+            sampleDirs = "<br><br>Fastq directories are:<br> {} <br>".format(fastq_directories)
+            email["content"] = email["content"] + sampleDirs + FOOTER;
         else:
-            (toList, ccList) = determineEmailRecipients(delivered,  addressMap, recipients)
-            emailContent = template.render(samples=sorted(samples, key=lambda x: int(x.split("_")[-1])),
-                                           runType=runType, requestId=delivered.requestId, firstTime=firstTime,
-                                           footer=FOOTER, userName=delivered.userName, pm=pm, species=species)
+            sampleList = "<br><br>Samples are:<br>"+"<br>".join(sorted(samples, key=lambda x: int(x.split("_")[-1])))
+            email["content"] = email["content"] + sampleList + FOOTER
 
-        # TODO determine if already delivered (redelivery)
-        redelivery = False
-        if redelivery:
-            print("Redelivery")
-            if useNewLogic:
-                email["content"] = email["content"].replace("Hello,", "Hello,\nWe have linked additional FASTQs to this project. Often, this is because we re-sequenced a pool of samples, some of which had already obtained sufficient reads in the first round of sequencing." )            
-            else:    
-                emailContent = emailContent.replace("Hello,", "Hello,\nWe have linked additional fastqs to this project. Often this is caused because we re-sequenced a pool and already sufficiently sequenced samples received additional reads." )
-        #now_in_ms = int(round(time.time()*1000))
-        #most_recent_date = max(delivered.deliveryDate, now_in_ms)
+        notifier.newNotify(runType, delivered, email, toList, ccList)
 
-        if useNewLogic:
-            notifier.newNotify(runType, delivered, email, toList, ccList)
-        else:
-            notifier.notify(runType, delivered, emailContent, toList, ccList)
     except:
         e = sys.exc_info()[0]
         print(e)
