@@ -1,7 +1,10 @@
 import datetime
 import json
 import urllib.request
-from MailStaticStrings import NO_PM, MSKCC_ADDRESS, DEFAULT_ADDRESS
+import sys
+import smtplib
+from email.mime.text import MIMEText
+from DeliveryConstants import NO_PM, MSKCC_ADDRESS, DEFAULT_ADDRESS, SKI_SENDER_ADDRESS
 
 
 class SampleDescription:
@@ -64,8 +67,8 @@ class DeliveryDescription:
 
 class DeliveryInfo:
     def __init__(self):
-        self.server = "https://tango.mskcc.org:8443"
-        self.mode = "DEV"
+        self.server = "https://igolims.mskcc.org:8443/LimsRest"
+        self.mode = "TEST"
         self.deliveryDescriptions = []
     
     def recentDeliveries(self, base64string, minutes):
@@ -123,22 +126,50 @@ class DeliveryInfo:
         self.skiMapping = aliases
 
 
-class DevDeliveryInfo(DeliveryInfo):
-    def __init__(self):
-        DeliveryInfo.__init__(self)
-        self.server = "https://tango.mskcc.org:8443/LimsRest"
-        self.mode = "DEV"
-
-
 class ProdDeliveryInfo(DeliveryInfo):
     def __init__(self):
         DeliveryInfo.__init__(self)
-        self.server = "https://igolims.mskcc.org:8443/LimsRest"
         self.mode = "PROD"
 
 
 class TestDeliveryInfo(DeliveryInfo):
     def __init__(self):
         DeliveryInfo.__init__(self)
-        self.server = "https://igolims.mskcc.org:8443/LimsRest"
         self.mode = "TEST"
+
+class ProdEmail():
+    # TO DEPRECATE
+    def notify(self, runType, delivered, email, mainContacts, additionalContacts):
+        msg = MIMEText(email["content"], "html")
+        msg['Subject'] = email["subject"]
+        msg['From'] = SKI_SENDER_ADDRESS
+        msg['To'] = ",".join(mainContacts)
+        msg['Cc'] = ",".join(additionalContacts)
+        s = smtplib.SMTP('localhost')
+        s.sendmail(SKI_SENDER_ADDRESS, mainContacts + additionalContacts, msg.as_string())
+        s.close()
+
+    def alert(self, delivered):
+        e = sys.exc_info()[0]
+        toList = [DEFAULT_ADDRESS] 
+        ccList = [DEFAULT_ADDRESS]
+        msg = MIMEText("An error occurred for the request " + delivered.requestId + " and user was not notified")
+        msg['Subject'] = 'Error in delivery ' + delivered.requestId
+        msg['From'] = SKI_SENDER_ADDRESS
+        msg['To'] = ",".join(toList)
+        msg['Cc'] = ",".join(ccList)
+        s = smtplib.SMTP('localhost')
+        s.sendmail(SKI_SENDER_ADDRESS,toList + ccList, msg.as_string())
+        s.close()
+
+class DevEmail():
+    def notify(self, runType, delivered, email, mainContacts, additionalContacts):
+        print("-----------")
+        print("Subject: " + email["subject"])
+        print("From", SKI_SENDER_ADDRESS)
+        print("To", ",".join(mainContacts))
+        print("Cc", ",".join(additionalContacts))
+        print(email["content"])
+
+    def alert(self, delivered):
+        print(delivered)
