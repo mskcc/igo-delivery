@@ -68,7 +68,6 @@ class DeliveryDescription:
 class DeliveryInfo:
     def __init__(self):
         self.server = "https://igolims.mskcc.org:8443/LimsRest"
-        self.mode = "TEST"
         self.deliveryDescriptions = []
     
     def recentDeliveries(self, base64string, minutes):
@@ -124,18 +123,6 @@ class DeliveryInfo:
 
     def setAliases(self, aliases):
         self.skiMapping = aliases
-
-
-class ProdDeliveryInfo(DeliveryInfo):
-    def __init__(self):
-        DeliveryInfo.__init__(self)
-        self.mode = "PROD"
-
-
-class TestDeliveryInfo(DeliveryInfo):
-    def __init__(self):
-        DeliveryInfo.__init__(self)
-        self.mode = "TEST"
 
 class ProdEmail():
     # TO DEPRECATE
