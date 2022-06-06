@@ -5,157 +5,210 @@ import traceback
 from collections import defaultdict
 import ssl
 import os
-
+import jinja2
 import setaccess
 import LinkProjectToSamples
+import DeliveryConstants
 from DeliveryHelpers import *
-from EmailLogic import *
-from DeliveryConstants import emailGroups, emailAddresses
 
-# main function part
-# TODO clean code to get rid of all old logic/function that didn't work
-# TODO remove dev mode
-# TODO put all constant variable into deliveryconstants file
-# TODO merge notifier?
+def recipe2RunType(recipe):
+    runType = recipe
+    if (
+        runType == "WholeExome-KAPALib"
+        or runType == "WholeExomeSequencing"
+        or runType == "Agilent_v4_51MB_Human"
+        or runType == "IDT_Exome_v1_FP"
+    ):
+        runType = "WESAnalysis"
+    if runType == "Agilent_MouseAllExonV1":
+        runType = "WESAnalyis-Mouse"
+    return runType
 
-class HandleMappings:
-    def __init__(self):
-        self.nameMapping = {}
-        self.groupMapping = {}
-        self.addressMapping = {}
+# add additional recipients based on project(05500 only), RunType(updated base on recipe by recipe2RunType) and analysis type
+def determineDataAccessRecipients(deliveryDesc, recipients, runType):
+    toList = recipients
+    # standard email ccList only contains ski_igo_delivery group
+    ccList = DeliveryConstants.addressMap['standard']
+    analysisType = deliveryDesc.analysisType
+    runType = runType.upper()
+    # BY PROJECT
+    if "05500" in deliveryDesc.requestId:
+        ccList += DeliveryConstants.addressMap["ski"]
+    # BY RECIPE
+    elif (("IMPACT" in runType or "HEMEPACT" in runType) and "M-" not in runType) or "CAS" in analysisType:
+        ccList += DeliveryConstants.addressMap['impact']
+    elif "ACCESS" in runType:
+        ccList += DeliveryConstants.addressMap["access"]
+    # WES WITH CCS ANALYSIS ?
+    elif "WES" in runType and "CCS" in analysisType:
+        ccList += DeliveryConstants.addressMap['wesWithCCS']
+    # BY ANALYSIS TYPE
+    elif "BIC" in analysisType:
+        ccList += DeliveryConstants.addressMap['pipelineDefault']
+    elif "CCS" in analysisType:
+        ccList += DeliveryConstants.addressMap['ccs']
+
+    return (toList, ccList)
+
+def determineDataAccessContent(deliveryDesc, runType):
+    analysisType = deliveryDesc.analysisType
+ 
+    # replace all different versions of WES recipe with WholeExomeSequencing
+    runType = runType.upper()
+    if runType == "WESANALYSIS":
+        recipe = "WholeExomeSequencing"
+    else:
+        recipe = deliveryDesc.recipe
     
-    def mapEmail(self, email):
-        if email in self.nameMapping:
-            return self.nameMapping[email]
-        return email
+    email = {
+        "content": "",
+        "subject": (
+            DeliveryConstants.genericSubject
+            % (recipe, deliveryDesc.requestId)
+        ),
+    }
 
+    # generate email content using different templates based on runtype and analysis type
 
-class HandleFileBasedMapping(HandleMappings):
-    def __init__(self):
-        HandleMappings.__init__(self)
+    # BY RunType
+    if (("IMPACT" in runType or "HEMEPACT" in runType) and "M-" not in runType) or "CAS" in analysisType:
+        email["content"] = (DeliveryConstants.impactContent) % ( 
+            recipe,
+            deliveryDesc.requestId,
+            deliveryDesc.userName
+            )
+    elif "ACCESS" in runType:
+        email["content"] = (DeliveryConstants.accessContent) % (
+            recipe,
+            deliveryDesc.requestId,
+        )
 
-    def populate(self):
-        self.populateGroupsMapping()
-        self.populateAddessesMapping()
+    # BY ANALYSIS TYPE
+    elif "WES" in runType and "CCS" in analysisType:
+        email["content"] = (DeliveryConstants.wesWithCCSContent) % (
+            recipe,
+            deliveryDesc.requestId,
+        )
+    elif analysisType == "FASTQ ONLY":
+        # check whether the investigator is within MSK or not
+        if deliveryDesc.userName != "YOUR_MSKCC_ADDRESS":
+            email["content"] = DeliveryConstants.genericContent % (
+                recipe,
+                deliveryDesc.requestId,
+                deliveryDesc.userName,
+            )
+        else:
+            email["content"] = DeliveryConstants.nonMSKContent % (
+                recipe,
+                deliveryDesc.requestId,
+                deliveryDesc.piEmail,
+            )
+    # Analysis catchall
+    elif analysisType != "":
+        email["content"] = (DeliveryConstants.genericAnalysisContent) % (
+            recipe,
+            deliveryDesc.requestId,
+        )
 
-    def populateGroupsMapping(self):
-        with(open("DeliveryGroups.txt")) as emailGroupLists:
-            for line in emailGroupLists:
-                groupArray = line.strip("\n").split(":")
-                self.groupMapping[groupArray[0]] = groupArray[1].split(",")
+    # NO RULE APPLIED
+    else:
+        # check whether the investigator is within MSK or not
+        if deliveryDesc.userName != "YOUR_MSKCC_ADDRESS":
+            email["content"] = DeliveryConstants.genericContent % (
+                recipe,
+                deliveryDesc.requestId,
+                deliveryDesc.userName,
+            )
+        else:
+            email["content"] = DeliveryConstants.nonMSKContent % (
+                recipe,
+                deliveryDesc.requestId,
+                deliveryDesc.piEmail,
+            )
 
-    def populateAddessesMapping(self):
-        with(open("DeliveryEmails.txt")) as emailAddresses:
-            for line in emailAddresses:
-                emailArray = line.strip("\n").split(":")
-                self.addressMapping[emailArray[0]] = []
-                for group in emailArray[1].split(","):
-                    self.addressMapping[emailArray[0]] = (
-                        self.addressMapping[emailArray[0]] + self.groupMapping[group]
-                    )
+    # ADDONS
+    if "CRISPRSEQ" in runType:
+        email["content"] += DeliveryConstants.crisprAddon
 
+    return email
 
-def mapRecipientLists(emailGroups, emailAddresses):
-    emailList = dict()
-    for key in emailGroups:
+# TODO add arguments for unit eg, d for day, m for minutes
+def main(mode, minutes):
+    ssl._create_default_https_context = ssl._create_unverified_context
+    deliveryInfo = DeliveryInfo() 
+    if mode == "TEST":
+        notifier = DevEmail()
+    else:
+        notifier = ProdEmail()
+    minutes = minutes
+
+    print("Email logic running in mode: {}, searching for deliveries for the past {} minutes".format(mode, minutes))
+    
+    # get recent delivery information from LIMS
+    with (open("ConnectLimsRest.txt")) as connectInfo:
+        username = connectInfo.readline().strip()
+        password = connectInfo.readline().strip()
+    deliveryInfo.setAliases(aliases)
+    user_pass = username + ":" + password
+    deliveries = deliveryInfo.recentDeliveries(base64.standard_b64encode(user_pass.encode('utf-8')), minutes)
+
+    # send email for each delivery
+    for delivered in deliveries:
         try:
-            # trim whitespaces and split comma-separated string into array
-            # chose to keep constants as comma-separated strings to make them easier to edit
-            emailGroupsArray = emailGroups[key].replace(" ", "").split(",")
-            emailList[key] = []
-            for group in emailGroupsArray:
-                if group in emailAddresses:
-                    emailAdressArray = emailAddresses[group].replace(" ", "").split(",")
-                    emailList[key] = emailList[key] + emailAdressArray
-                else:
-                    # "raw" group, for example, does not have a value, it only needs the standard recipients
-                    emailList[key] = emailList[key]
+            samples = []
+            runType = recipe2RunType(delivered.recipe)
+            species = delivered.species
+            pm = delivered.pm
+            # get sample list for the project
+            for possibleSample in delivered.samples:
+                sampleName = possibleSample.fullId()
+                if len(possibleSample.passing_runs) > 0 and sampleName not in samples:
+                    samples.append(sampleName)
+            print("Project: " + delivered.requestId)
+            
+            # PI and Investigator always start out as recipients
+            recipients = list(filter(lambda x: x != "", [delivered.piEmail, delivered.investigatorEmail]))
+            additionalRecipients = list(filter(lambda mail: mail not in recipients, delivered.dataAccessEmails.lower().split(",")))
+            print("recipients {}, additional recipients {}".format(recipients, additionalRecipients))
+            recipients = recipients + additionalRecipients
+        
+            email = determineDataAccessContent(delivered, runType)
+            (toList, ccList) = determineDataAccessRecipients(delivered, recipients, runType)
+            if runType == "DLP":
+                # query ngs_stats DB for all fastq paths for the project
+                request_metadata = setaccess.get_request_metadata(delivered.requestId)
+                # from all fastq paths get the fastq.gz folder only (probably 1 folder with all fastq.gz files)
+                fastq_directories = set()
+                for fastq in request_metadata.fastqs:
+                    fastq_directories.add(os.path.dirname(fastq))
+                sampleDirs = "<br><br>Fastq directories are:<br> {} <br>".format(fastq_directories)
+                email["content"] = email["content"] + sampleDirs + DeliveryConstants.FOOTER
+            else:
+                sampleList = "<br><br>Samples are:<br>"+"<br>".join(sorted(samples, key=lambda x: int(x.split("_")[-1])))
+                email["content"] = email["content"] + sampleList + DeliveryConstants.FOOTER
+
+            notifier.notify(runType, delivered, email, toList, ccList)
+
         except:
             e = sys.exc_info()[0]
             print(e)
-    return emailList
+            traceback.print_exc(file=sys.stdout)
+            try:
+                notifier.alert(delivered)
+            except NameError:
+                fields = defaultdict(str)
+                fields["requestId"] = "None"
+                delivered = DeliveryDescription(fields)
+                notifier.alert(delivered)
 
+# usage: python3 EmailDelivered.py TEST|PROD TIMELENGTH
+# default as test mode and 30 minutes length
+if __name__ == '__main__':
+    mode = "TEST"
+    if len(sys.argv) > 1:
+        mode = sys.argv[1]
+    minutes = 30
+    if len(sys.argv) == 3:
+        minutes = sys.argv[2]
 
-ssl._create_default_https_context = ssl._create_unverified_context # ?
-
-# change to main function and read command line arguments
-mode = "TEST"
-if len(sys.argv) > 1:
-    mode = sys.argv[1]
-elif mode == "TEST":
-    deliveryInfo = TestDeliveryInfo()
-    notifier = DevEmail()
-else:
-    deliveryInfo = ProdDeliveryInfo()
-    notifier = ProdEmail()
-
-minutes = 30
-if len(sys.argv) == 3:
-    minutes = sys.argv[2]
-
-print("Email logic running in mode: {}, searching for deliveries for the past {} minutes".format(mode, minutes))
-
-# TODO SHIFT ALL EMAILS TO NEW LOGIC
-mapHandler = HandleFileBasedMapping()
-mapHandler.populate()
-addressMap = mapHandler.addressMapping
-
-newAddressMap = mapRecipientLists(emailGroups, emailAddresses)
-
-with (open("ConnectLimsRest.txt")) as connectInfo:
-    username = connectInfo.readline().strip()
-    password = connectInfo.readline().strip()
-tracker = LinkProjectToSamples.TestTracker()
-deliveryInfo.setAliases(aliases)
-user_pass = username + ":" + password
-deliveries = deliveryInfo.recentDeliveries(base64.standard_b64encode(user_pass.encode('utf-8')), minutes)
-
-for delivered in deliveries:
-    try:
-        samples = []
-        runType = recipe2RunType(delivered.recipe)
-        species = delivered.species
-        pm = delivered.pm
-        for possibleSample in delivered.samples:
-            sampleName = possibleSample.fullId()
-            if len(possibleSample.passing_runs) > 0 and sampleName not in samples:
-                samples.append(sampleName)
-        template = getTemplate(runType, delivered, getAllTemplates())
-        print("Project: " + delivered.requestId)
-        
-        # PI and Investigator always start out as recipients
-        recipients = list(filter(lambda x: x != "", [delivered.piEmail, delivered.investigatorEmail]))
-
-        # maybe can be deleted
-        additionalRecipients = list(filter(lambda mail: mail not in recipients, delivered.dataAccessEmails.lower().split(",")))
-        print("recipients {}, additional recipients {}".format(recipients, additionalRecipients))
-        recipients = recipients + additionalRecipients
-      
-        email = determineDataAccessContent(delivered, runType)
-        (toList, ccList) = determineDataAccessRecipients(delivered, copy.deepcopy(newAddressMap), recipients)
-        if runType == "DLP":
-            # query ngs_stats DB for all fastq paths for the project
-            request_metadata = setaccess.get_request_metadata(delivered.requestId)
-            # from all fastq paths get the fastq.gz folder only (probably 1 folder with all fastq.gz files)
-            fastq_directories = set()
-            for fastq in request_metadata.fastqs:
-                fastq_directories.add(os.path.dirname(fastq))
-            sampleDirs = "<br><br>Fastq directories are:<br> {} <br>".format(fastq_directories)
-            email["content"] = email["content"] + sampleDirs + FOOTER;
-        else:
-            sampleList = "<br><br>Samples are:<br>"+"<br>".join(sorted(samples, key=lambda x: int(x.split("_")[-1])))
-            email["content"] = email["content"] + sampleList + FOOTER
-
-        notifier.newNotify(runType, delivered, email, toList, ccList)
-
-    except:
-        e = sys.exc_info()[0]
-        print(e)
-        traceback.print_exc(file=sys.stdout)
-        try:
-             notifier.alert(delivered)
-        except NameError:
-            fields = defaultdict(str)
-            fields["requestId"] = "None"
-            delivered = DeliveryDescription(fields)
-            notifier.alert(delivered)
+    main(mode, minutes)
