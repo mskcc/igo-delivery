@@ -149,7 +149,7 @@ class ProdEmail():
         s.sendmail(SKI_SENDER_ADDRESS,toList + ccList, msg.as_string())
         s.close()
 
-class DevEmail():
+class TestEmail():
     def notify(self, runType, delivered, email, mainContacts, additionalContacts):
         print("-----------")
         print("Subject: " + email["subject"])
