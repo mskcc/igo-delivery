@@ -25,28 +25,28 @@ def recipe2RunType(recipe):
     return runType
 
 # add additional recipients based on project(05500 only), RunType(updated base on recipe by recipe2RunType) and analysis type
-def determineDataAccessRecipients(deliveryDesc, recipients, runType):
+def determineDataAccessRecipients(deliveryDesc, recipients, runType, addressMap):
     toList = recipients
     # standard email ccList only contains ski_igo_delivery group
-    ccList = DeliveryConstants.addressMap['standard']
+    ccList = addressMap['standard']
     analysisType = deliveryDesc.analysisType
     runType = runType.upper()
     # BY PROJECT
     if "05500" in deliveryDesc.requestId:
-        ccList += DeliveryConstants.addressMap["ski"]
+        ccList += addressMap["ski"]
     # BY RECIPE
     elif (("IMPACT" in runType or "HEMEPACT" in runType) and "M-" not in runType) or "CAS" in analysisType:
-        ccList += DeliveryConstants.addressMap['impact']
+        ccList += addressMap['impact']
     elif "ACCESS" in runType:
-        ccList += DeliveryConstants.addressMap["access"]
+        ccList += addressMap["access"]
     # WES WITH CCS ANALYSIS ?
     elif "WES" in runType and "CCS" in analysisType:
-        ccList += DeliveryConstants.addressMap['wesWithCCS']
+        ccList += addressMap['wesWithCCS']
     # BY ANALYSIS TYPE
     elif "BIC" in analysisType:
-        ccList += DeliveryConstants.addressMap['pipelineDefault']
+        ccList += addressMap['pipelineDefault']
     elif "CCS" in analysisType:
-        ccList += DeliveryConstants.addressMap['ccs']
+        ccList += addressMap['ccs']
 
     return (toList, ccList)
 
@@ -137,7 +137,7 @@ def main(mode, minutes):
     ssl._create_default_https_context = ssl._create_unverified_context
     deliveryInfo = DeliveryInfo() 
     if mode == "TEST":
-        notifier = DevEmail()
+        notifier = TestEmail()
     else:
         notifier = ProdEmail()
     minutes = minutes
@@ -148,7 +148,7 @@ def main(mode, minutes):
     with (open("ConnectLimsRest.txt")) as connectInfo:
         username = connectInfo.readline().strip()
         password = connectInfo.readline().strip()
-    deliveryInfo.setAliases(aliases)
+    deliveryInfo.setAliases(DeliveryConstants.aliases)
     user_pass = username + ":" + password
     deliveries = deliveryInfo.recentDeliveries(base64.standard_b64encode(user_pass.encode('utf-8')), minutes)
 
@@ -167,13 +167,14 @@ def main(mode, minutes):
             print("Project: " + delivered.requestId)
             
             # PI and Investigator always start out as recipients
+            # TODO remove duplciate from recipients when pi and investigator is same person
             recipients = list(filter(lambda x: x != "", [delivered.piEmail, delivered.investigatorEmail]))
             additionalRecipients = list(filter(lambda mail: mail not in recipients, delivered.dataAccessEmails.lower().split(",")))
             print("recipients {}, additional recipients {}".format(recipients, additionalRecipients))
             recipients = recipients + additionalRecipients
         
             email = determineDataAccessContent(delivered, runType)
-            (toList, ccList) = determineDataAccessRecipients(delivered, recipients, runType)
+            (toList, ccList) = determineDataAccessRecipients(delivered, recipients, runType, copy.deepcopy(DeliveryConstants.addressMap))
             if runType == "DLP":
                 # query ngs_stats DB for all fastq paths for the project
                 request_metadata = setaccess.get_request_metadata(delivered.requestId)
