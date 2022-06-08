@@ -125,7 +125,6 @@ class DeliveryInfo:
         self.skiMapping = aliases
 
 class ProdEmail():
-    # TO DEPRECATE
     def notify(self, runType, delivered, email, mainContacts, additionalContacts):
         msg = MIMEText(email["content"], "html")
         msg['Subject'] = email["subject"]
