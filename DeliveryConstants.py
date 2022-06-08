@@ -1,3 +1,4 @@
+# email group need to be added to ccList based on recipe and analysis type
 addressMap = {
     "standard": ["zzPDL_ski_igo_delivery@mskcc.org"],  # will be added to every delivery, together with project LabHead and PI
     "impact": ["zzPDL_CMO_Pipeline_Support@mskcc.org"],
@@ -8,6 +9,7 @@ addressMap = {
     "ski": ["skiinnovation@mskcc.org"]
 }
 
+# when people use their ski address in submission, need to convert name based on their mskcc address
 aliases = {
     "a-haimovitz-friedman@ski.mskcc.org": "haimovia",
     "a-zelenetz@mskcc.org": "zeleneta",
