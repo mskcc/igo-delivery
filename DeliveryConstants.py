@@ -47,7 +47,7 @@ fastQOnlyContent = "Hello,<br><br>The FASTQ files for your %s Project %s have be
 
 impactContent = "Hello,<br><br>IGO processing is now complete. FASTQ files for your %s Project %s have been posted to the %s shared drive as well as transferred to the CMO Analysis Support (CAS) Team, for pipeline analysis. You will be contacted when this project is delivered to cBioPortal."
 
-wesWithCCSContent = "Hello,<br><br>IGO processing is now complete.FASTQ files for your %s Project %s have been transferred to the CMO Computational Science (CCS) Team, for pipeline analysis. Please contact your Project Manager for updates."
+wesWithCCSContent = "Hello,<br><br>IGO processing is now complete.FASTQ files for your %s Project %s have been transferred to the CMO Computational Sciences (CCS) Team, for pipeline analysis. Please contact your Project Manager for updates."
 
 accessContent = "Hello,<br><br>IGO processing is now complete. FASTQ files for your %s Project %s have been transferred to the ACCESS Analysis Team, for data quality control and standard data processing. Please contact your Project Manager for further updates."
 
