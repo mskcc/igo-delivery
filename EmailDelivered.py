@@ -81,6 +81,7 @@ def determineDataAccessContent(deliveryDesc, runType):
         email["content"] = (DeliveryConstants.accessContent) % (
             recipe,
             deliveryDesc.requestId,
+            deliveryDesc.userName
         )
 
     # BY ANALYSIS TYPE
@@ -88,6 +89,7 @@ def determineDataAccessContent(deliveryDesc, runType):
         email["content"] = (DeliveryConstants.wesWithCCSContent) % (
             recipe,
             deliveryDesc.requestId,
+            deliveryDesc.userName
         )
     elif analysisType == "FASTQ ONLY":
         # check whether the investigator is within MSK or not
@@ -108,6 +110,7 @@ def determineDataAccessContent(deliveryDesc, runType):
         email["content"] = (DeliveryConstants.genericAnalysisContent) % (
             recipe,
             deliveryDesc.requestId,
+            deliveryDesc.userName
         )
 
     # NO RULE APPLIED
