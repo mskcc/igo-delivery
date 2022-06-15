@@ -10,6 +10,7 @@ import setaccess
 import LinkProjectToSamples
 import DeliveryConstants
 from DeliveryHelpers import *
+import setaccess
 
 def recipe2RunType(recipe):
     runType = recipe
