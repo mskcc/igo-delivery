@@ -27,6 +27,7 @@ class NGS_Stats:
         self.labName = stats_json["labName"]      # name of delivery folder
         self.fastq_list = stats_json["fastqs"]    # list of original fastq files need to be linked
         self.samples = self.get_sample_run_dict() # dictionary of sample -> runs from fastq list
+        self.requestName = stats_json["requestName"] # requestName in order to seperate DLP from others
 
     # get dictionary of sample -> run by fastq_list
     def get_sample_run_dict(self):
@@ -79,6 +80,7 @@ def link_by_request(reqID):
     json_info = get_NGS_stats(reqID)
     stats = NGS_Stats(json_info)
     labName = stats.labName
+    recipe = stats.requestName
     
     # check if lab folder exist, if not create one
     labDir = "/igo/delivery/share/%s" % (labName)
@@ -102,20 +104,35 @@ def link_by_request(reqID):
 
     madeDir = []
     # create symbol links for each sample
-    for sample, runs in stats.samples.items():
-        updated_runs = updateRun(runs, reqID, sample)
-        for run in updated_runs:
-            dlink = DELIVERY_ROOT % (labName, reqID, trimRunID(run))
-            # check if lab/project/run folder exist, if not create one
-            if not os.path.exists(dlink) and dlink not in madeDir:
-                cmd = "mkdir " + dlink
-                print (cmd)
-                madeDir.append(dlink)
-                subprocess.run(cmd, shell=True)
-            slink = FASTQ_ROOT % (run, reqID, sample)
+    # if it is DLP only create link for the run not each sample
+    if recipe == "DLP":
+        # get fastq file folder path instead of each fastq
+        fastq_directories = set()
+        for fastq in stats.fastq_list:
+            fastq_directories.add(os.path.dirname(fastq))
+        
+        # create link for each folder path
+        for fastq_dir in fastq_directories:
+            dlink = projDir
+            slink = fastq_dir
             cmd = "ln -sf {} {}".format(slink, dlink)
             print (cmd)
             subprocess.run(cmd, shell=True)
+    else:
+        for sample, runs in stats.samples.items():
+            updated_runs = updateRun(runs, reqID, sample)
+            for run in updated_runs:
+                dlink = DELIVERY_ROOT % (labName, reqID, trimRunID(run))
+                # check if lab/project/run folder exist, if not create one
+                if not os.path.exists(dlink) and dlink not in madeDir:
+                    cmd = "mkdir " + dlink
+                    print (cmd)
+                    madeDir.append(dlink)
+                    subprocess.run(cmd, shell=True)
+                slink = FASTQ_ROOT % (run, reqID, sample)
+                cmd = "ln -sf {} {}".format(slink, dlink)
+                print (cmd)
+                subprocess.run(cmd, shell=True)
     
     setaccess.set_request_acls(reqID)
 
