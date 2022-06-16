@@ -142,7 +142,7 @@ def link_by_request(reqID):
 # step 3 call link_by_request for each project in the updated list
 
 def get_recent_delivery(time):
-    file1 = open('restConnect.txt', 'r')
+    file1 = open('ConnectLimsRest.txt', 'r')
     allLines = file1.readlines()
     username = allLines[0].strip()
     password = allLines[1].strip()
