@@ -6,7 +6,8 @@ addressMap = {
     "wesWithCCS": ["zzPDL_CMO_TEMPO_Support@mskcc.org","skicmopm@mskcc.org"],
     "ccs": ["zzPDL_CMO_TEMPO_Support@mskcc.org","skicmopm@mskcc.org"],
     "pipelineDefault": ["bic-request@cbio.mskcc.org"],
-    "ski": ["skiinnovation@mskcc.org"]
+    "ski": ["skiinnovation@mskcc.org"],
+    "CMO-CH": ["zzPDL_SKI_CMO_ACCESS@mskcc.org"]
 }
 
 # when people use their ski address in submission, need to convert name based on their mskcc address
