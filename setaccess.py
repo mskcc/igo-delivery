@@ -11,18 +11,29 @@ DLP_REQUIRED_ACCESS_LIST = ["havasove", "shahbot", "mcphera1", "grewald"]
 LAB_SHARE_PATH = "/igo/delivery/share/"
 ACL_TEMP_DIR = "/tmp/acls/"
 NGS_STATS_ENDPOINT = "http://delphi.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
+NGS_STATS_ENDPOINT_LAB = "http://delphi.mskcc.org:8080/ngs-stats/permissions/getLabPermissions/"
 NGS_STATS_ENDPOINT_RECENT = "http://delphi.mskcc.org:8080/ngs-stats/rundone/getRecentlyArchivedRequests/"
 
-
-def set_request_acls(request):
+# lab_name is optional
+def set_request_acls(request, lab_name):
     print("Setting ACLs for request {} ".format(request))
     request_perms = get_request_metadata(request)
     if request_perms is None:
-        print("Unknown request ID {}, quitting.".format(request))
-        return
+        # Maybe the request is older than the LIMS, just give access to all lab members based on the folder such as 'pamere'
+        if lab_name == "":
+            print("Unknown request ID {}, quitting.".format(request))
+            return
+        else:
+            print("No known LIMS data, granting permissions based on the lab folder: " + lab_name)
+            request_perms = get_lab_metadata(lab_name, request)
+            temp_acl_file = request_perms.write_acl_temp_file()
+            request_perms.grant_share_acls(temp_acl_file, True)
+            print("---")
+            return
     temp_acl_file = request_perms.write_acl_temp_file()
     request_perms.grant_fastq_acls(temp_acl_file)
-    request_perms.grant_share_acls(temp_acl_file)
+    request_perms.grant_share_acls(temp_acl_file, False)
+    print("---")
 
 
 def get_request_metadata(request):
@@ -33,6 +44,16 @@ def get_request_metadata(request):
     if 'status' in r.keys() and r['status'] == 500:
         return None
     return RequestPermissions(r['labName'], r['labMembers'], r['request'], r['requestName'], r['requestReadAccess'], r['requestGroups'], r['dataAccessEmails'], r['fastqs'])
+
+
+def get_lab_metadata(lab_name, request):
+    url = NGS_STATS_ENDPOINT_LAB + lab_name
+    print("Sending request {}".format(url))
+    r = requests.get(url).json()
+    # 'status': 500, 'error': 'Internal Server Error',
+    if 'status' in r.keys() and r['status'] == 500:
+        return None
+    return RequestPermissions(r['labName'], r['labMembers'], request, '', '', '', '', '')
 
 
 # fields from LIMS and fastq databases used to determine all ACLs
@@ -110,12 +131,14 @@ class RequestPermissions:
             if result != 0:
                 print("ERROR SETTING ACL at project level - ".format(set_acl_command))
 
-    def grant_share_acls(self, temp_file_path):
+    def grant_share_acls(self, temp_file_path, recursively):
         if self.request_share_exists():
             print("Setting ACLS for all request share folders below " + self.request_share_path)
             # nfs4_setfacl -R(recursive)
             # nfs4_setfacl -R -S "/igo/archive/FASTQ/acl_entries.txt" /igo/delivery/share/lab/request
             set_acl_command = "nfs4_setfacl -R -S \"{}\" {}".format(temp_file_path, self.request_share_path)
+            if recursively:
+                set_acl_command = "nfs4_setfacl -R -L -S \"{}\" {}".format(temp_file_path, self.request_share_path)
             print(set_acl_command)
             result = os.system(set_acl_command)
             if result != 0:
@@ -205,11 +228,12 @@ def main():
 
     if args.startswith("REQUEST="):
         request = args[8:]
-        set_request_acls(request)
+        set_request_acls(request, '')
 
     if args.startswith("LABSHAREDIR="):
         lab_folder = args[12:]
         print("Granting access permissions for {}".format(lab_folder))
+        lab_name = os.path.basename(lab_folder)
         project_folders_list = [f.path for f in os.scandir(lab_folder) if f.is_dir()]
         for project_folder in project_folders_list:
             folder_name = os.path.basename(project_folder)
@@ -219,7 +243,7 @@ def main():
                 continue
             if folder_name.startswith("Project_"):  # ignore non Project_ folders
                 request = folder_name.replace("Project_", "")
-                set_request_acls(request)
+                set_request_acls(request, lab_name)
     if args.startswith("ARCHIVEDWITHINLAST="):
         minutes = args[19:]
         if int(minutes) > 70000:
@@ -229,7 +253,7 @@ def main():
         print("Sending request {}".format(getArchivedProjectsURL))
         archivedProjects = requests.get(getArchivedProjectsURL).json()
         for project in archivedProjects:
-            set_request_acls(project)
+            set_request_acls(project, '')
 
 
 if __name__ == '__main__':
