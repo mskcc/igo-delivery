@@ -40,6 +40,8 @@ def determineDataAccessRecipients(deliveryDesc, recipients, runType, addressMap)
         ccList += addressMap['impact']
     elif "ACCESS" in runType:
         ccList += addressMap["access"]
+    elif "CMO-CH" in runType:
+        ccList += addressMap["CMO-CH"]
     # WES WITH CCS ANALYSIS ?
     elif "WES" in runType and "CCS" in analysisType:
         ccList += addressMap['wesWithCCS']
@@ -78,7 +80,7 @@ def determineDataAccessContent(deliveryDesc, runType):
             deliveryDesc.requestId,
             deliveryDesc.userName
             )
-    elif "ACCESS" in runType:
+    elif "ACCESS" in runType or "CMO-CH" in runType:
         email["content"] = (DeliveryConstants.accessContent) % (
             recipe,
             deliveryDesc.requestId,
