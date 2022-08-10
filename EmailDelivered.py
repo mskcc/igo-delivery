@@ -80,7 +80,7 @@ def determineDataAccessContent(deliveryDesc, runType):
             deliveryDesc.requestId,
             deliveryDesc.userName
             )
-    elif "ACCESS" in runType:
+    elif "ACCESS" in runType or "CMO-CH" in runType:
         email["content"] = (DeliveryConstants.accessContent) % (
             recipe,
             deliveryDesc.requestId,
