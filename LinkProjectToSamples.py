@@ -1,14 +1,11 @@
 import requests
 from requests.exceptions import HTTPError
-import json
 import re
 from os import listdir
 import os.path
-import glob
 import subprocess
 import time
 import sys
-import smtplib
 import setaccess
 
 NGS_STATS_ENDPOINT = "http://delphi.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
@@ -116,7 +113,7 @@ def link_by_request(reqID):
             dlink = projDir
             slink = fastq_dir
             cmd = "ln -sf {} {}".format(slink, dlink)
-            print (cmd)
+            print(cmd)
             subprocess.run(cmd, shell=True)
     else:
         for sample, runs in stats.samples.items():
@@ -134,7 +131,7 @@ def link_by_request(reqID):
                 print (cmd)
                 subprocess.run(cmd, shell=True)
     
-    setaccess.set_request_acls(reqID)
+    setaccess.set_request_acls(reqID, "")
 
 # loop link_by_request method by time peirod, time as argument, unit will be min
 # step 1 get project list within time period by given time interval from LIMS eg: "https://igolims.mskcc.org:8443/LimsRest/getRecentDeliveries?time=30&units=m"
