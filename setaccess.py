@@ -73,7 +73,7 @@ class RequestPermissions:
         if self.request_name == "DLP":
             print("DLP requests must give access to {} ".format(DLP_REQUIRED_ACCESS_LIST))
             self.data_access_emails.extend(DLP_REQUIRED_ACCESS_LIST)
-        if self.request_name.contains("TCRSeq"):
+        if "TCRSeq" in self.request_name:
             print("TCRSeq requests must give access to {} ".format(TCRSEQ_REQUIRED_ACCESS_LIST))
             self.data_access_emails.extend(TCRSEQ_REQUIRED_ACCESS_LIST)
 
