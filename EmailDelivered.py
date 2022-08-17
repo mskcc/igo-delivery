@@ -19,6 +19,7 @@ def recipe2RunType(recipe):
         or runType == "WholeExomeSequencing"
         or runType == "Agilent_v4_51MB_Human"
         or runType == "IDT_Exome_v1_FP"
+        or runType == "IDT_Exome_v2_FP_Viral_Probes"
     ):
         runType = "WESAnalysis"
     if runType == "Agilent_MouseAllExonV1":
@@ -42,7 +43,7 @@ def determineDataAccessRecipients(deliveryDesc, recipients, runType, addressMap)
         ccList += addressMap["access"]
     elif "CMO-CH" in runType:
         ccList += addressMap["CMO-CH"]
-    elif "TCRSeq" in runType:
+    elif "TCRSEQ" in runType:
         ccList += addressMap["TCRSeq"]
     # WES WITH CCS ANALYSIS ?
     elif "WES" in runType and "CCS" in analysisType:
