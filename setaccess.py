@@ -8,6 +8,7 @@ import glob
 special_group_accounts = ["cmoigo", "bicigo", "isabl"]
 
 DLP_REQUIRED_ACCESS_LIST = ["havasove", "shahbot", "mcphera1", "grewald"]
+TCRSEQ_REQUIRED_ACCESS_LIST = ["elhanaty","greenbab","lih7","havasove"]
 LAB_SHARE_PATH = "/igo/delivery/share/"
 ACL_TEMP_DIR = "/tmp/acls/"
 NGS_STATS_ENDPOINT = "http://delphi.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
@@ -72,6 +73,9 @@ class RequestPermissions:
         if self.request_name == "DLP":
             print("DLP requests must give access to {} ".format(DLP_REQUIRED_ACCESS_LIST))
             self.data_access_emails.extend(DLP_REQUIRED_ACCESS_LIST)
+        if self.request_name.contains("TCRSeq"):
+            print("TCRSeq requests must give access to {} ".format(TCRSEQ_REQUIRED_ACCESS_LIST))
+            self.data_access_emails.extend(TCRSEQ_REQUIRED_ACCESS_LIST)
 
     # Grants ACLs to all fastq.gz files in a project, parent folders for the fastqs and SampleSheet.csv
     # For DLP runs ending in 'DLP' DIANA_0294_AHTGLJDSXY_DLP, grants read access to the 'Reports' and 'Stats' folders
