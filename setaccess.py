@@ -18,7 +18,7 @@ NGS_STATS_ENDPOINT_RECENT = "http://delphi.mskcc.org:8080/ngs-stats/rundone/getR
 # lab_name is optional
 def set_request_acls(request, lab_name):
     print("Setting ACLs for request {} ".format(request))
-    request_perms = get_request_metadata(request)
+    request_perms = get_request_metadata(request, "none")
     if request_perms is None:
         # Maybe the request is older than the LIMS, just give access to all lab members based on the folder such as 'pamere'
         if lab_name == "":
@@ -26,9 +26,11 @@ def set_request_acls(request, lab_name):
             return
         else:
             print("No known LIMS data, granting permissions based on the lab folder: " + lab_name)
-            request_perms = get_lab_metadata(lab_name, request)
+            #request_perms = get_lab_metadata(lab_name, request)
+            request_perms = get_request_metadata(request, lab_name)
             temp_acl_file = request_perms.write_acl_temp_file()
             request_perms.grant_share_acls(temp_acl_file, True)
+            request_perms.grant_fastq_acls(temp_acl_file)
             print("---")
             return
     temp_acl_file = request_perms.write_acl_temp_file()
@@ -37,8 +39,8 @@ def set_request_acls(request, lab_name):
     print("---")
 
 
-def get_request_metadata(request):
-    url = NGS_STATS_ENDPOINT + request
+def get_request_metadata(request, lab_name):
+    url = NGS_STATS_ENDPOINT + request + "/" + lab_name
     print("Sending request {}".format(url))
     r = requests.get(url).json()
     # 'status': 500, 'error': 'Internal Server Error',
