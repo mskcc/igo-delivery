@@ -26,12 +26,12 @@ class TestRequestPermissions(unittest.TestCase):
 
 class Test(TestCase):
     def test_get_request_metadata(self):
-        p = setaccess.get_request_metadata("08822")
+        p = setaccess.get_request_metadata("08822", "none")
         print("Lab members for 08822 {}".format(p.members))
         print("Lab request members for 08822 {}".format(p.request_members))
         self.assertEqual("shuklan", p.lab)
 
     def test_get_request_metadata_invalid_request(self):
-        p = setaccess.get_request_metadata("08822_XXX")
+        p = setaccess.get_request_metadata("08822_XXX", "none")
         print("No information found from endpoint for: {}".format(p))
         self.assertIsNone(p)

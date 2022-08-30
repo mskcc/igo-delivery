@@ -26,7 +26,6 @@ def set_request_acls(request, lab_name):
             return
         else:
             print("No known LIMS data, granting permissions based on the lab folder: " + lab_name)
-            #request_perms = get_lab_metadata(lab_name, request)
             request_perms = get_request_metadata(request, lab_name)
             temp_acl_file = request_perms.write_acl_temp_file()
             request_perms.grant_share_acls(temp_acl_file, True)

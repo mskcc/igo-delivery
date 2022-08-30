@@ -186,7 +186,7 @@ def main(mode, minutes):
             (toList, ccList) = determineDataAccessRecipients(delivered, recipients, runType, copy.deepcopy(DeliveryConstants.addressMap))
             if runType == "DLP":
                 # query ngs_stats DB for all fastq paths for the project
-                request_metadata = setaccess.get_request_metadata(delivered.requestId)
+                request_metadata = setaccess.get_request_metadata(delivered.requestId, "none")
                 # from all fastq paths get the fastq.gz folder only (probably 1 folder with all fastq.gz files)
                 fastq_directories = set()
                 for fastq in request_metadata.fastqs:
