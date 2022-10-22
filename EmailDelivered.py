@@ -139,7 +139,7 @@ def determineDataAccessContent(deliveryDesc, runType):
     if "CRISPRSEQ" in runType:
         email["content"] += DeliveryConstants.crisprAddon
     # BAM illustration for RNASeq
-    if "RNASEQ" or "SMARTER" in runType:
+    if "RNASEQ" in runType or "SMARTER" in runType:
         email["content"] += DeliveryConstants.RNASeqAddon
     return email
 
