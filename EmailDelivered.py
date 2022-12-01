@@ -143,6 +143,9 @@ def determineDataAccessContent(deliveryDesc, runType):
         email["content"] += DeliveryConstants.RNASeqAddon
     return email
 
+    # Add sample pick up instructions at end for all delivery emails
+    email["content"] += DeliveryConstants.SamplePickUpAddon
+
 # TODO add arguments for unit eg, d for day, m for minutes
 def main(mode, minutes):
     ssl._create_default_https_context = ssl._create_unverified_context
