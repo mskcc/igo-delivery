@@ -141,10 +141,11 @@ def determineDataAccessContent(deliveryDesc, runType):
     # BAM illustration for RNASeq
     if "RNASEQ" in runType or "SMARTER" in runType:
         email["content"] += DeliveryConstants.RNASeqAddon
-    return email
 
     # Add sample pick up instructions at end for all delivery emails
     email["content"] += DeliveryConstants.SamplePickUpAddon
+
+    return email
 
 # TODO add arguments for unit eg, d for day, m for minutes
 def main(mode, minutes):
