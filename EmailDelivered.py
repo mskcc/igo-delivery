@@ -143,7 +143,10 @@ def determineDataAccessContent(deliveryDesc, runType):
         email["content"] += DeliveryConstants.RNASeqAddon
 
     # Add sample pick up instructions at end for all delivery emails
-    email["content"] += DeliveryConstants.SamplePickUpAddon
+    if "Investigator Prepared" in deliveryDesc.requestType:
+        email["content"] += DeliveryConstants.UserSamplePickUpAddon
+    else:  
+        email["content"] += DeliveryConstants.SamplePickUpAddon
 
     return email
 
