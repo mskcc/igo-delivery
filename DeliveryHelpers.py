@@ -51,6 +51,9 @@ class DeliveryDescription:
         self.additionalEmails = ""
         self.dataAccessEmails = ""
         self.userName = ""
+        self.requestType = ""
+        if "requestType" in queryDict:
+            self.requestType = queryDict["requestType"]
 
     def setUserName(self, nicknameMapping):
         userName = self.piEmail.split("@")[0]
