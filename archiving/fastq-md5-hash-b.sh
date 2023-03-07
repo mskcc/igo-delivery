@@ -28,8 +28,8 @@ for RUN in $RUNS
      if [ $MODE = archive ]
       then
       RUNNAME=$(basename $RUN)
-       curl "http://delphi.mskcc.org:8080/ngs-stats/rundone/fastq/$RUNNAME" &
-       (diff -qs fastq.md5.input fastq.md5.archive; wc -l fastq.md5.*) | mail -s "Hashed and archived: $RUN" mcmanamd@mskcc.org,naborsd@mskcc.org
+       curl "http://igodb.mskcc.org:8080/ngs-stats/rundone/fastq/$RUNNAME" &
+       (diff -qs fastq.md5.input fastq.md5.archive; wc -l fastq.md5.*) | mail -s "Hashed and archived: $RUN" mcmanamd@mskcc.org,naborsd@mskcc.org,luc@mskcc.org
      fi # [ $MODE = archive ]
    fi # [ -e $READYFILE -a ! -e $TYPE.md5.$MODE ]
  done

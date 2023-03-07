@@ -8,7 +8,7 @@ import time
 import sys
 import setaccess
 
-NGS_STATS_ENDPOINT = "http://delphi.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
+NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
 FASTQ_ROOT = "/igo/delivery/FASTQ/%s/Project_%s/%s" # (runID, requestID, Sample)
 DELIVERY_ROOT = "/igo/delivery/share/%s/Project_%s/%s" # (labName, requestID, trimmedRun)
 
@@ -70,7 +70,7 @@ def updateRun(runs, reqID, sample):
     return updatedRuns
 
 # DLP has different rule for linking no linking for samples
-# step 1 get project ID as input, query from db to get fastq list eg :http://delphi.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/13117_B
+# step 1 get project ID as input, query from db to get fastq list eg :http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/13117_B
 # step 2 create symbol links eg: ln -sf /igo/delivery/FASTQ/RUTH_0089_AHHLYJDSX3/Project_13117_B/Sample_HCTWT1_IGO_13117_B_1 /igo/delivery/share/bakhoums/Project_13117_B/RUTH_0089
 # step 3 call setaccess
 def link_by_request(reqID):
