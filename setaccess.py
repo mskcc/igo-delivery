@@ -11,9 +11,9 @@ DLP_REQUIRED_ACCESS_LIST = ["havasove", "shahbot", "mcphera1", "grewald"]
 TCRSEQ_REQUIRED_ACCESS_LIST = ["elhanaty","greenbab","lih7","havasove"]
 LAB_SHARE_PATH = "/igo/delivery/share/"
 ACL_TEMP_DIR = "/tmp/acls/"
-NGS_STATS_ENDPOINT = "http://delphi.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
-NGS_STATS_ENDPOINT_LAB = "http://delphi.mskcc.org:8080/ngs-stats/permissions/getLabPermissions/"
-NGS_STATS_ENDPOINT_RECENT = "http://delphi.mskcc.org:8080/ngs-stats/rundone/getRecentlyArchivedRequests/"
+NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
+NGS_STATS_ENDPOINT_LAB = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getLabPermissions/"
+NGS_STATS_ENDPOINT_RECENT = "http://igodb.mskcc.org:8080/ngs-stats/rundone/getRecentlyArchivedRequests/"
 
 # lab_name is optional
 def set_request_acls(request, lab_name):
