@@ -24,7 +24,7 @@ class NGS_Stats:
         self.labName = stats_json["labName"]      # name of delivery folder
         self.fastq_list = stats_json["fastqs"]    # list of original fastq files need to be linked
         self.samples = self.get_sample_run_dict() # dictionary of sample -> runs from fastq list
-        self.requestName = stats_json["requestName"] # requestName in order to seperate DLP from others
+        self.requestName = stats_json["requestName"] # requestName in order to seperate DLP from others, ONT-LongReadcDNASeq/ONT-LongReadDNASeq for nanopore project.
 
     # get dictionary of sample -> run by fastq_list
     def get_sample_run_dict(self):
@@ -115,6 +115,21 @@ def link_by_request(reqID):
             cmd = "ln -sf {} {}".format(slink, dlink)
             print(cmd)
             subprocess.run(cmd, shell=True)
+    # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
+    elif recipe == "ONT-LongReadcDNASeq" or recipe == "ONT-LongReadDNASeq":
+        # find project data folder
+        parent_dir = "/igo/delivery/nanopore/"
+        project_list = os.listdir(parent_dir)
+        project_prefix = "Project_" + reqID + "__"
+        for project_dir in project_list:
+            if project_prefix in project_dir:
+                # create symbol link
+                slink = parent_dir + project_dir
+                dlink = projDir
+                cmd = "ln -sf {} {}".format(slink, dlink)
+                print(cmd)
+                subprocess.run(cmd, shell=True)
+
     else:
         for sample, runs in stats.samples.items():
             updated_runs = updateRun(runs, reqID, sample)
