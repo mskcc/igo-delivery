@@ -74,66 +74,59 @@ def determineDataAccessContent(deliveryDesc, runType):
         ),
     }
 
-    # generate email content using different templates based on runtype and analysis type
-
-    # BY RunType
-    if (("IMPACT" in runType or "HEMEPACT" in runType) and "M-" not in runType) or "CAS" in analysisType:
-        email["content"] = (DeliveryConstants.impactContent) % ( 
-            recipe,
-            deliveryDesc.requestId,
-            deliveryDesc.userName
+    # generate email content using different templates based on runtype and analysis type, check whether user is outside first.
+    
+    # check whether the investigator is within MSK or not
+    if deliveryDesc.userName != "YOUR_MSKCC_ADDRESS":
+        # BY RunType
+        if (("IMPACT" in runType or "HEMEPACT" in runType) and "M-" not in runType) or "CAS" in analysisType:
+            email["content"] = (DeliveryConstants.impactContent) % ( 
+                recipe,
+                deliveryDesc.requestId,
+                deliveryDesc.userName
+                )
+        elif "ACCESS" in runType or "CMO-CH" in runType:
+            email["content"] = (DeliveryConstants.accessContent) % (
+                recipe,
+                deliveryDesc.requestId,
+                deliveryDesc.userName
             )
-    elif "ACCESS" in runType or "CMO-CH" in runType:
-        email["content"] = (DeliveryConstants.accessContent) % (
-            recipe,
-            deliveryDesc.requestId,
-            deliveryDesc.userName
-        )
 
-    # BY ANALYSIS TYPE
-    elif "WES" in runType and "CCS" in analysisType:
-        email["content"] = (DeliveryConstants.wesWithCCSContent) % (
-            recipe,
-            deliveryDesc.requestId,
-            deliveryDesc.userName
-        )
-    elif analysisType == "FASTQ ONLY":
-        # check whether the investigator is within MSK or not
-        if deliveryDesc.userName != "YOUR_MSKCC_ADDRESS":
+        # BY ANALYSIS TYPE
+        elif "WES" in runType and "CCS" in analysisType:
+            email["content"] = (DeliveryConstants.wesWithCCSContent) % (
+                recipe,
+                deliveryDesc.requestId,
+                deliveryDesc.userName
+            )
+        elif analysisType == "FASTQ ONLY":
             email["content"] = DeliveryConstants.genericContent % (
                 recipe,
                 deliveryDesc.requestId,
                 deliveryDesc.userName,
             )
-        else:
-            email["content"] = DeliveryConstants.nonMSKContent % (
+        
+        # Analysis catchall
+        elif analysisType != "":
+            email["content"] = (DeliveryConstants.genericAnalysisContent) % (
                 recipe,
                 deliveryDesc.requestId,
-                deliveryDesc.piEmail,
+                deliveryDesc.userName
             )
-    # Analysis catchall
-    elif analysisType != "":
-        email["content"] = (DeliveryConstants.genericAnalysisContent) % (
-            recipe,
-            deliveryDesc.requestId,
-            deliveryDesc.userName
-        )
 
-    # NO RULE APPLIED
+        # NO RULE APPLIED
+        else:
+            email["content"] = DeliveryConstants.genericContent % (
+                recipe,
+                deliveryDesc.requestId,
+                deliveryDesc.userName,
+            )
     else:
-        # check whether the investigator is within MSK or not
-        if deliveryDesc.userName != "YOUR_MSKCC_ADDRESS":
-            email["content"] = DeliveryConstants.genericContent % (
-                recipe,
-                deliveryDesc.requestId,
-                deliveryDesc.userName,
-            )
-        else:
-            email["content"] = DeliveryConstants.nonMSKContent % (
-                recipe,
-                deliveryDesc.requestId,
-                deliveryDesc.piEmail,
-            )
+        email["content"] = DeliveryConstants.nonMSKContent % (
+            recipe,
+            deliveryDesc.requestId,
+            deliveryDesc.piEmail,
+        )
 
     # ADDONS
     if "CRISPRSEQ" in runType:
