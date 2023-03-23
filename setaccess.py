@@ -34,7 +34,10 @@ def set_request_acls(request, lab_name):
             return
     temp_acl_file = request_perms.write_acl_temp_file()
     request_perms.grant_fastq_acls(temp_acl_file)
-    request_perms.grant_share_acls(temp_acl_file, False)
+    if request_perms.request_name.startswith("ONT"):
+        request_perms.grant_share_acls(temp_acl_file, True)
+    else:
+        request_perms.grant_share_acls(temp_acl_file, False)
     print("---")
 
 
