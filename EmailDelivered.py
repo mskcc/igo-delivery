@@ -195,6 +195,10 @@ def main(mode, minutes):
                     fastq_directories.add(os.path.dirname(fastq))
                 sampleDirs = "<br><br>Fastq directories are:<br> {} <br>".format(fastq_directories)
                 email["content"] = email["content"] + sampleDirs + DeliveryConstants.FOOTER
+
+            elif runType.startswith("ONT-"):
+                email["content"] = email["content"] + DeliveryConstants.FOOTER
+
             else:
                 sampleList = "<br><br>Samples are:<br>"+"<br>".join(sorted(samples, key=lambda x: int(x.split("_")[-1])))
                 email["content"] = email["content"] + sampleList + DeliveryConstants.FOOTER
