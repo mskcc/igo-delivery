@@ -116,13 +116,13 @@ def link_by_request(reqID):
             print(cmd)
             subprocess.run(cmd, shell=True)
     # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
-    elif recipe == "ONT-LongReadcDNASeq" or recipe == "ONT-LongReadDNASeq":
+    elif recipe.startswith("ONT-"):
         # find project data folder
         parent_dir = "/igo/delivery/nanopore/"
         project_list = os.listdir(parent_dir)
-        project_prefix = "Project_" + reqID + "__"
+        project_folder = "Project_" + reqID
         for project_dir in project_list:
-            if project_prefix in project_dir:
+            if project_folder == project_dir:
                 # create symbol link
                 slink = parent_dir + project_dir
                 dlink = projDir
