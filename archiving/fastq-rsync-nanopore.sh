@@ -46,8 +46,7 @@ function rsync_run {
 
     echo "Archived $SOURCE/$RUN to $DEST/$RUN `date`"
     chgrp -R igo $DEST/$RUN
-    find "/nfs4/$DEST/$RUN" -type d -exec nfs4_setfacl -S "/igo/delivery/FASTQ/acl_entries_groups.txt" {} \;
-    find "/nfs4/$DEST/$RUN" -type f -exec nfs4_setfacl -S "/igo/delivery/FASTQ/acl_entries.txt" {} \;
+    nfs4_setfacl -R -S "/igo/delivery/FASTQ/acl_entries.txt" $DEST/$RUN
     exec /usr/bin/chmod +x $DEST/$RUN
     echo "Hashed and archived: $RUN" | mail -s "Hashed and archived: $RUN" mcmanamd@mskcc.org,naborsd@mskcc.org,luc@mskcc.org
     curl "http://delphi.mskcc.org:8080/ngs-stats/rundone/fastq/$RUN" &
