@@ -45,7 +45,7 @@ genericSubject= "[IGO Data] %s Project %s "
 
 genericContent = "Hello,<br><br>The FASTQ files for your %s Project %s have been posted to the <b>%s</b> shared drive. Detailed instructions available at: <a href='http://genomics.mskcc.org/accessing-your-data/'> genomics.mskcc.org/accessing-your-data </a>"
 
-nonMSKContent = "Hello,<br><br>The FASTQ files for your %s Project %s are ready. We could not identify a shared drive for %s. Please reach out to zzPDL_SKI_IGO_DATA@mskcc.org to discuss how you can access your data."
+nonMSKContent = "Hello,<br><br>The FASTQ files for your %s Project %s are ready. We could not identify a shared drive for %s. Please reach out to skigodata@mskcc.org to discuss how you can access your data."
 
 fastQOnlyContent = "Hello,<br><br>The FASTQ files for your %s Project %s have been posted to the %s shared drive. Detailed instructions available at: <a href='http://genomics.mskcc.org/accessing-your-data/'> genomics.mskcc.org/accessing-your-data </a>"
 
