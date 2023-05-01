@@ -5,7 +5,7 @@ addressMap = {
     "access": ["zzPDL_SKI_CMO_ACCESS@mskcc.org"],
     "wesWithCCS": ["zzPDL_CMO_TEMPO_Support@mskcc.org","skicmopm@mskcc.org"],
     "ccs": ["zzPDL_CMO_TEMPO_Support@mskcc.org","skicmopm@mskcc.org"],
-    "pipelineDefault": ["bic-request@cbio.mskcc.org"],
+    "pipelineDefault": ["bicrequest@mskcc.org"],
     "ski": ["skiinnovation@mskcc.org"],
     "CMO-CH": ["zzPDL_SKI_CMO_ACCESS@mskcc.org"],
     "TCRSeq": ["elhanaty@mskcc.org","greenbab@mskcc.org","lih7@mskcc.org","havasove@mskcc.org"]
