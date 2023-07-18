@@ -45,6 +45,8 @@ def determineDataAccessRecipients(deliveryDesc, recipients, runType, addressMap)
         ccList += addressMap["CMO-CH"]
     elif "TCRSEQ" in runType:
         ccList += addressMap["TCRSeq"]
+    elif "DLP" in runType:
+        ccList += addressMap["DLP"]
     # WES WITH CCS ANALYSIS ?
     elif "WES" in runType and "CCS" in analysisType:
         ccList += addressMap['wesWithCCS']
