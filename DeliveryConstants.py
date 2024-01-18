@@ -50,7 +50,7 @@ nonMSKContent = "Hello,<br><br>The FASTQ files for your %s Project %s are ready.
 
 fastQOnlyContent = "Hello,<br><br>The FASTQ files for your %s Project %s have been posted to the %s shared drive. Detailed instructions available at: <a href='http://genomics.mskcc.org/accessing-your-data/'> genomics.mskcc.org/accessing-your-data </a>"
 
-impactContent = "Hello,<br><br>IGO processing is now complete. FASTQ files for your %s Project %s have been posted to the <b>%s</b> shared drive and transferred to the CMO Analysis Support (CAS) Team for pipeline analysis. You will be contacted when this project is delivered to cBioPortal."
+impactContent = "Hello,<br><br>IGO processing is now complete. FASTQ files for your %s Project %s have been posted to the <b>%s</b> shared drive and transferred to the Bioinformatics Core for pipeline analysis. You will be contacted when results are ready."
 
 wesWithCCSContent = "Hello,<br><br>IGO processing is now complete. FASTQ files for your %s Project %s have been posted to the <b>%s</b> shared drive and transferred to the CMO Computational Sciences (CCS) Team for pipeline analysis. Please contact your Project Manager for updates."
 
