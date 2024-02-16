@@ -1,7 +1,7 @@
 # email group need to be added to ccList based on recipe and analysis type
 addressMap = {
     "standard": ["zzPDL_ski_igo_delivery@mskcc.org"],  # will be added to every delivery, together with project LabHead and PI
-    "impact": ["zzPDL_CMO_Pipeline_Support@mskcc.org"],
+    "impact": ["bicargos@mskcc.org"],
     "access": ["zzPDL_SKI_CMO_ACCESS@mskcc.org"],
     "wesWithCCS": ["zzPDL_CMO_TEMPO_Support@mskcc.org","skicmopm@mskcc.org"],
     "ccs": ["zzPDL_CMO_TEMPO_Support@mskcc.org","skicmopm@mskcc.org"],
