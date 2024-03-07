@@ -143,6 +143,9 @@ def determineDataAccessContent(deliveryDesc, runType):
     else:  
         email["content"] += DeliveryConstants.SamplePickUpAddon
 
+    # Add data storage policy for all delivery emails
+    email["content"] += DeliveryConstants.DataStoragePolicyAddon
+
     return email
 
 # TODO add arguments for unit eg, d for day, m for minutes
