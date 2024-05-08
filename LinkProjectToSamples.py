@@ -24,8 +24,8 @@ class NGS_Stats:
         self.labName = stats_json["labName"]      # name of delivery folder
         self.fastq_list = stats_json["fastqs"]    # list of original fastq files need to be linked
         self.samples = self.get_sample_run_dict() # dictionary of sample -> runs from fastq list
-        self.requestName = stats_json["requestName"] # requestName in order to seperate DLP from others, ONT-LongReadcDNASeq/ONT-LongReadDNASeq for nanopore project.
-
+        self.requestName = stats_json["requestName"] # requestName in order to seperate nanopore project from others.
+        self.isDLP = stats_json["isDLP"]
     # get dictionary of sample -> run by fastq_list
     def get_sample_run_dict(self):
         samples = {}
@@ -77,7 +77,8 @@ def link_by_request(reqID):
     json_info = get_NGS_stats(reqID)
     stats = NGS_Stats(json_info)
     labName = stats.labName
-    recipe = stats.requestName
+    request_name = stats.requestName
+    isDLP = stats.isDLP
     
     # check if lab folder exist, if not create one
     labDir = "/igo/delivery/share/%s" % (labName)
@@ -102,7 +103,7 @@ def link_by_request(reqID):
     madeDir = []
     # create symbol links for each sample
     # if it is DLP only create link for the run not each sample
-    if recipe == "DLP":
+    if isDLP:
         # get fastq file folder path instead of each fastq
         fastq_directories = set()
         for fastq in stats.fastq_list:
@@ -117,7 +118,7 @@ def link_by_request(reqID):
             print(cmd)
             subprocess.run(cmd, shell=True)
     # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
-    elif recipe.startswith("ONT-"):
+    elif request_name == "Nanopore":
         # find project data folder
         parent_dir = "/igo/delivery/nanopore/"
         project_list = os.listdir(parent_dir)
