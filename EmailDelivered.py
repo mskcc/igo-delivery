@@ -46,12 +46,16 @@ def determineDataAccessRecipients(deliveryDesc, recipients, recipe, addressMap):
 def determineDataAccessContent(deliveryDesc):
     analysisType = deliveryDesc.analysisType
     recipe = deliveryDesc.recipe
+    if recipe in DeliveryConstants.recipe_dict.keys():
+        updated_recipe = DeliveryConstants.recipe_dict[recipe]
+    else:
+        updated_recipe = recipe
     
     email = {
         "content": "",
         "subject": (
             DeliveryConstants.genericSubject
-            % (recipe, deliveryDesc.requestId)
+            % (updated_recipe, deliveryDesc.requestId)
         ),
     }
 
@@ -62,13 +66,13 @@ def determineDataAccessContent(deliveryDesc):
         # BY recipe
         if (("IMPACT" in recipe or "HEMEPACT" in recipe) and "-Mouse" not in recipe) or "CAS" in analysisType:
             email["content"] = (DeliveryConstants.impactContent) % ( 
-                recipe,
+                updated_recipe,
                 deliveryDesc.requestId,
                 deliveryDesc.userName
                 )
         elif "ACCESS" in recipe or "CMOCH" in recipe:
             email["content"] = (DeliveryConstants.accessContent) % (
-                recipe,
+                updated_recipe,
                 deliveryDesc.requestId,
                 deliveryDesc.userName
             )
@@ -82,7 +86,7 @@ def determineDataAccessContent(deliveryDesc):
             )
         elif analysisType == "FASTQ ONLY":
             email["content"] = DeliveryConstants.genericContent % (
-                recipe,
+                updated_recipe,
                 deliveryDesc.requestId,
                 deliveryDesc.userName,
             )
@@ -90,7 +94,7 @@ def determineDataAccessContent(deliveryDesc):
         # Analysis catchall
         elif analysisType != "":
             email["content"] = (DeliveryConstants.genericAnalysisContent) % (
-                recipe,
+                updated_recipe,
                 deliveryDesc.requestId,
                 deliveryDesc.userName
             )
@@ -98,13 +102,13 @@ def determineDataAccessContent(deliveryDesc):
         # NO RULE APPLIED
         else:
             email["content"] = DeliveryConstants.genericContent % (
-                recipe,
+                updated_recipe,
                 deliveryDesc.requestId,
                 deliveryDesc.userName,
             )
     else:
         email["content"] = DeliveryConstants.nonMSKContent % (
-            recipe,
+            updated_recipe,
             deliveryDesc.requestId,
             deliveryDesc.piEmail,
         )
