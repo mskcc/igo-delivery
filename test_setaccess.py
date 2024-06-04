@@ -6,14 +6,15 @@ import setaccess
 
 class TestRequestPermissions(unittest.TestCase):
     def test_get_acls(self):
-        # (self, lab, members, request, request_name, request_members, groups, fastqs):
+        # (self, lab, members, request, request_name, request_members, groups, fastqs, isDLP):
         p = setaccess.RequestPermissions("labX",
                                          [{"pi": "kunga","member": "kunga","group": False}],
                                          "08822", "DLP",
                                          [{'request': '08822', 'member': 'mcmanamd', 'group': False}],
                                          ["cmoigo", "bicigo"],
                                          [" vialea"],  # dataAccessEmails
-                                         ["none"])
+                                         ["none"],
+                                         [True])
 
         print("ACL access list:\n" + p.get_acls())
         self.assertIn("A:g:bicigo@hpc.private:rxtncy", p.get_acls())

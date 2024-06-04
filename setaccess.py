@@ -48,7 +48,7 @@ def get_request_metadata(request, lab_name):
     # 'status': 500, 'error': 'Internal Server Error',
     if 'status' in r.keys() and r['status'] == 500:
         return None
-    return RequestPermissions(r['labName'], r['labMembers'], r['request'], r['requestName'], r['requestReadAccess'], r['requestGroups'], r['dataAccessEmails'], r['fastqs'])
+    return RequestPermissions(r['labName'], r['labMembers'], r['request'], r['requestName'], r['requestReadAccess'], r['requestGroups'], r['dataAccessEmails'], r['fastqs'], r['isDLP'])
 
 
 def get_lab_metadata(lab_name, request):
@@ -58,12 +58,12 @@ def get_lab_metadata(lab_name, request):
     # 'status': 500, 'error': 'Internal Server Error',
     if 'status' in r.keys() and r['status'] == 500:
         return None
-    return RequestPermissions(r['labName'], r['labMembers'], request, '', '', '', '', '')
+    return RequestPermissions(r['labName'], r['labMembers'], request, '', '', '', '', '', '')
 
 
 # fields from LIMS and fastq databases used to determine all ACLs
 class RequestPermissions:
-    def __init__(self, lab, members, request, requestName, request_members, groups, dataAccessEmails, fastqs):
+    def __init__(self, lab, members, request, requestName, request_members, groups, dataAccessEmails, fastqs, isDLP):
         self.lab = lab
         self.members = members  # members of the lab
         self.request = request  # request ID such as 08822_X
@@ -73,8 +73,9 @@ class RequestPermissions:
         self.data_access_emails = list(dataAccessEmails)
         self.fastqs = fastqs  # list of fastqs per request
         self.request_share_path = LAB_SHARE_PATH + self.lab + "/Project_" + self.request
+        self.isDLP = isDLP
 
-        if self.request_name == "DLP":
+        if self.isDLP:
             print("DLP requests must give access to {} ".format(DLP_REQUIRED_ACCESS_LIST))
             self.data_access_emails.extend(DLP_REQUIRED_ACCESS_LIST)
         if "TCRSeq" in self.request_name:
