@@ -144,9 +144,13 @@ def link_by_request(reqID):
                     madeDir.append(dlink)
                     subprocess.run(cmd, shell=True)
                 slink = FASTQ_ROOT % (run, reqID, sample)
-                cmd = "ln -sf {} {}".format(slink, dlink)
-                print (cmd)
-                subprocess.run(cmd, shell=True)
+                # check if file exists before create link for cases that project contains old samples eg: 08822
+                if os.path.isfile(slink):
+                    cmd = "ln -sf {} {}".format(slink, dlink)
+                    print (cmd)
+                    subprocess.run(cmd, shell=True)
+                else:
+                    print("{} not exits".format(slink))
     
     setaccess.set_request_acls(reqID, "")
 
