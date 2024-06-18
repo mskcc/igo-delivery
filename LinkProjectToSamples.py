@@ -63,8 +63,10 @@ def updateRun(runs, reqID, sample):
             for possibleRun in runID:
                 source_path = "/igo/delivery/FASTQ/{}/Project_{}/{}".format(source, reqID, sample)
                 possibleRun_path = "/igo/delivery/FASTQ/{}/Project_{}/{}".format(possibleRun, reqID, sample)
-                if os.path.getmtime(possibleRun_path) > os.path.getmtime(source_path):
-                    source = possibleRun
+                # check if folder exists before create link for cases that project contains old samples eg: 08822
+                if os.path.exists(source_path) and os.path.exists(possibleRun_path):
+                    if os.path.getmtime(possibleRun_path) > os.path.getmtime(source_path):
+                        source = possibleRun
             updatedRuns.append(source)
 
     return updatedRuns
@@ -144,8 +146,8 @@ def link_by_request(reqID):
                     madeDir.append(dlink)
                     subprocess.run(cmd, shell=True)
                 slink = FASTQ_ROOT % (run, reqID, sample)
-                # check if file exists before create link for cases that project contains old samples eg: 08822
-                if os.path.isfile(slink):
+                # check if folder exists before create link for cases that project contains old samples eg: 08822
+                if os.path.exists(slink):
                     cmd = "ln -sf {} {}".format(slink, dlink)
                     print (cmd)
                     subprocess.run(cmd, shell=True)
