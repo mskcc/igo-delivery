@@ -25,7 +25,7 @@ def determineDataAccessRecipients(deliveryDesc, recipients, recipe, addressMap):
     if "05500" in deliveryDesc.requestId:
         ccList += addressMap["ski"]
     # BY RECIPE
-    elif (("IMPACT" in recipe or "HEMEPACT" in recipe) and "-Mouse" not in recipe) or "CAS" in analysisType:
+    elif (("IMPACT" in recipe or "HEMEPACT" in recipe) and "-MOUSE" not in recipe) or "CAS" in analysisType:
         ccList += addressMap['impact']
     elif "ACCESS" in recipe:
         ccList += addressMap["access"]
