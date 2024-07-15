@@ -253,6 +253,9 @@ def main():
 
     args = sys.argv[1]
 
+    if not os.path.exists(ACL_TEMP_DIR):
+        os.makedirs(ACL_TEMP_DIR)
+
     if args.startswith("REQUEST="):
         request = args[8:]
         set_request_acls(request, '')
