@@ -1,23 +1,45 @@
 import sys
 import shutil
 import os
+import socket
 from pathlib import Path
 import requests
 import glob
 
+# Group accounts have different names in the SDC and LDC datacenters which are:
+#  cmoigo -> GRP_CMO_SEQ
+#  bicigo -> GRP_BIC_SEQ
+#  isabl  -> grp_papaemme_seq
+#  shahbot-> SVC_shahs3_bot
+              
 special_group_accounts = ["cmoigo", "bicigo", "isabl"]
 
 DLP_REQUIRED_ACCESS_LIST = ["havasove", "shahbot", "mcphera1", "grewald"]
 TCRSEQ_REQUIRED_ACCESS_LIST = ["elhanaty","greenbab","lih7","havasove"]
-LAB_SHARE_PATH = "/igo/delivery/share/"
 ACL_TEMP_DIR = "/tmp/acls/"
 NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
 NGS_STATS_ENDPOINT_LAB = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getLabPermissions/"
 NGS_STATS_ENDPOINT_RECENT = "http://igodb.mskcc.org:8080/ngs-stats/rundone/getRecentlyArchivedRequests/"
 
+DOMAIN = "LDC"
+LAB_SHARE_PATH = "/igo/delivery/share/"
+ACL_DOMAIN = "@hpc.private"
+
+LAB_SHARE_PATH_SDC = "/ifs/instruments/igo_core/delivery/share/"
+LAB_SHARE_FASTQ_PATH_SDC = "/ifs/instruments/igo_core/delivery/FASTQ/"
+ACL_DOMAIN_SDC = "@mskcc.org"
+
+if socket.gethostname().startswith("isvigoacl01"):
+    print("Setting default paths for SDC - " + LAB_SHARE_PATH_SDC)
+    LAB_SHARE_PATH = LAB_SHARE_PATH_SDC
+    ACL_DOMAIN = ACL_DOMAIN_SDC
+    DOMAIN = "SDC"
+
+
 # lab_name is optional
 def set_request_acls(request, lab_name):
     print("Setting ACLs for request {} ".format(request))
+
     request_perms = get_request_metadata(request, "none")
     if request_perms is None:
         # Maybe the request is older than the LIMS, just give access to all lab members based on the folder such as 'pamere'
@@ -89,6 +111,8 @@ class RequestPermissions:
         command_prefix = "nfs4_setfacl -S \"{}\"".format(temp_file_path)
         sample_folders = set()
         for fastq in self.fastqs:
+            if DOMAIN == "SDC":
+                fastq = fastq.replace("/igo/delivery/FASTQ", LAB_SHARE_FASTQ_PATH_SDC)
             fastq_path = Path(fastq)
             if not fastq_path.exists():
                 print("{} fastq.gz does not exist. Moving on.".format(fastq))
@@ -167,11 +191,6 @@ class RequestPermissions:
         temp_file = open(temp_file_path, "w")  # open to overwrite any existing content
         temp_file.write(self.get_acls())
         temp_file.close()
-        # also write ACL file to the share dir if it exists for reference
-        if self.request_share_exists():
-            acl_file_copy_path = self.request_share_path + "/acl_permissions.txt"
-            print("Copying ACL permissions file to {}".format(acl_file_copy_path))
-            shutil.copy(temp_file_path, acl_file_copy_path)
 
         return temp_file_path
 
@@ -205,9 +224,9 @@ class RequestPermissions:
 
         acls = ""
         # Let's put groups on the top then individuals
-        for group_name in groups_set:
+        #for group_name in groups_set:
             # TODO check if group name is valid?
-            acls += "A:g:" + group_name + "@hpc.private:rxtncy\n"
+            #acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
 
         print("Checking if each account exists for all user IDs before trying to add the ACL with the id command")
         for user in users_set:
@@ -216,7 +235,7 @@ class RequestPermissions:
             if user_exists_result != 0:  # try again, for some reason the command occasionally fails when the id is valid
                 user_exists_result = os.system(user_exists_command)
             if user_exists_result == 0:
-                acls += "A::" + user + "@hpc.private:rxtncy\n"
+                acls += "A::" + user + ACL_DOMAIN + ":rxtncy\n"
             else:
                 print("User {} does not exist, they should be removed from the DB.".format(user))
 
@@ -266,3 +285,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
