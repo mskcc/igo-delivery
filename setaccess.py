@@ -224,12 +224,18 @@ class RequestPermissions:
 
         acls = ""
         # Let's put groups on the top then individuals
-        #for group_name in groups_set:
+        for group_name in groups_set:  # group names are different in each data center
             # TODO check if group name is valid?
-            #acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
+            if DOMAIN == "LDC":  # first data center, these are the group names used in the database
+                acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
+            if DOMAIN == "SDC" and group_name == "isabl":  
+                group_name = "grp_papaemme_seq"
+                acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
 
         print("Checking if each account exists for all user IDs before trying to add the ACL with the id command")
         for user in users_set:
+            if DOMAIN == "SDC" and user == "shahbot":
+                user = 'SVC_shahs3_bot'
             user_exists_command = "id -u %s" % (user)
             user_exists_result = os.system(user_exists_command)
             if user_exists_result != 0:  # try again, for some reason the command occasionally fails when the id is valid

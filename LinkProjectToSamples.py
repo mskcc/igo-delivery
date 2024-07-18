@@ -1,6 +1,7 @@
 import requests
 from requests.exceptions import HTTPError
 import re
+import socket
 from os import listdir
 import os.path
 import subprocess
@@ -11,6 +12,13 @@ import setaccess
 NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
 FASTQ_ROOT = "/igo/delivery/FASTQ/%s/Project_%s/%s" # (runID, requestID, Sample)
 DELIVERY_ROOT = "/igo/delivery/share/%s/Project_%s/%s" # (labName, requestID, trimmedRun)
+DELIVERY = "/igo/delivery/"
+
+if socket.gethostname().startswith("isvigoacl01"):
+    print("Setting default paths for SDC")
+    FASTQ_ROOT = "/ifs/instruments/igo_core/delivery/FASTQ/%s/Project_%s/%s" # (runID, requestID, Sample)
+    DELIVERY_ROOT = "/ifs/instruments/igo_core/delivery/share/%s/Project_%s/%s" # (labName, requestID, trimmedRun)
+    DELIVERY = "/ifs/instruments/igo_core/delivery/"
 
 # given requestID as input and get json dictionary as return
 def get_NGS_stats(reqID):
@@ -61,8 +69,8 @@ def updateRun(runs, reqID, sample):
         else:
             source = runID[0]
             for possibleRun in runID:
-                source_path = "/igo/delivery/FASTQ/{}/Project_{}/{}".format(source, reqID, sample)
-                possibleRun_path = "/igo/delivery/FASTQ/{}/Project_{}/{}".format(possibleRun, reqID, sample)
+                source_path = DELIVERY + "FASTQ/{}/Project_{}/{}".format(source, reqID, sample)
+                possibleRun_path = DELIVERY + "FASTQ/{}/Project_{}/{}".format(possibleRun, reqID, sample)
                 if os.path.getmtime(possibleRun_path) > os.path.getmtime(source_path):
                     source = possibleRun
             updatedRuns.append(source)
@@ -80,8 +88,8 @@ def link_by_request(reqID):
     recipe = stats.requestName
     
     # check if lab folder exist, if not create one
-    labDir = "/igo/delivery/share/%s" % (labName)
-    projDir = "/igo/delivery/share/%s/Project_%s" % (labName, reqID)
+    labDir = DELIVERY + "share/%s" % (labName)
+    projDir = DELIVERY + "share/%s/Project_%s" % (labName, reqID)
     if not os.path.exists(labDir):
         cmd = "mkdir " + labDir
         subprocess.run(cmd, shell=True)
