@@ -13,12 +13,14 @@ NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getReque
 FASTQ_ROOT = "/igo/delivery/FASTQ/%s/Project_%s/%s" # (runID, requestID, Sample)
 DELIVERY_ROOT = "/igo/delivery/share/%s/Project_%s/%s" # (labName, requestID, trimmedRun)
 DELIVERY = "/igo/delivery/"
+NANOPORE_DELIVERY = "/igo/delivery/nanopore/"
 
 if socket.gethostname().startswith("isvigoacl01"):
     print("Setting default paths for SDC")
     FASTQ_ROOT = "/ifs/datadelivery/igo_core/FASTQ/%s/Project_%s/%s" # (runID, requestID, Sample)
     DELIVERY_ROOT = "/ifs/datadelivery/igo_core/share/%s/Project_%s/%s" # (labName, requestID, trimmedRun)
     DELIVERY = "/ifs/datadelivery/igo_core/"
+    NANOPORE_DELIVERY = "/ifs/datadelivery/igo_core/nanopore/"
 
 # given requestID as input and get json dictionary as return
 def get_NGS_stats(reqID):
@@ -87,10 +89,9 @@ def link_by_request(reqID):
     json_info = get_NGS_stats(reqID)
     stats = NGS_Stats(json_info)
     labName = stats.labName
-    recipe = stats.requestName
-    request_name = stats.requestName
+    request_name = stats.requestName # ie PEDPEG, SingleCell, etc.
     isDLP = stats.isDLP
-    print("Recipe: " + recipe)
+    print("RequestName: " + request_name)
 
     # check if lab folder exist, if not create one
     labDir = DELIVERY + "share/%s" % (labName)
@@ -129,10 +130,10 @@ def link_by_request(reqID):
             cmd = "ln -sf {} {}".format(slink, dlink)
             print(cmd)
             subprocess.run(cmd, shell=True)
-            # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
+    # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
     elif request_name == "Nanopore":
         # find project data folder
-        parent_dir = "/igo/delivery/nanopore/"
+        parent_dir = NANOPORE_DELIVERY
         project_list = os.listdir(parent_dir)
         project_folder = "Project_" + reqID
         for project_dir in project_list:
@@ -155,7 +156,7 @@ def link_by_request(reqID):
                     madeDir.append(dlink)
                     subprocess.run(cmd, shell=True)
                 slink = FASTQ_ROOT % (run, reqID, sample)
-                
+
                 cmd = "ln -sf {} {}".format(slink, dlink)
                 print (cmd)
                 subprocess.run(cmd, shell=True)
