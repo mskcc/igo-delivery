@@ -14,9 +14,11 @@ FASTQ_ROOT = "/igo/delivery/FASTQ/%s/Project_%s/%s" # (runID, requestID, Sample)
 DELIVERY_ROOT = "/igo/delivery/share/%s/Project_%s/%s" # (labName, requestID, trimmedRun)
 DELIVERY = "/igo/delivery/"
 NANOPORE_DELIVERY = "/igo/delivery/nanopore/"
+SDC=False
 
 if socket.gethostname().startswith("isvigoacl01"):
     print("Setting default paths for SDC")
+    SDC = True
     FASTQ_ROOT = "/ifs/datadelivery/igo_core/FASTQ/%s/Project_%s/%s" # (runID, requestID, Sample)
     DELIVERY_ROOT = "/ifs/datadelivery/igo_core/share/%s/Project_%s/%s" # (labName, requestID, trimmedRun)
     DELIVERY = "/ifs/datadelivery/igo_core/"
@@ -112,6 +114,10 @@ def link_by_request(reqID):
     if not os.path.exists(projDir):
         cmd = "mkdir " + projDir
         subprocess.run(cmd, shell=True)
+
+    if SDC: # replace all paths /igo/delivery/FASTQ with /ifs/datadelivery/igo_core/FASTQ
+        print("Replacing all paths for SDC")
+        stats.fastq_list = [s.replace("/igo/delivery/FASTQ", "/ifs/datadelivery/igo_core/FASTQ") for s in stats.fastq_list]
 
     madeDir = []
     # create symbol links for each sample
