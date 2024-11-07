@@ -1,6 +1,7 @@
 import requests
 from requests.exceptions import HTTPError
 import re
+import socket
 from os import listdir
 import os.path
 import subprocess
@@ -11,6 +12,13 @@ import setaccess
 NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
 FASTQ_ROOT = "/igo/delivery/FASTQ/%s/Project_%s/%s" # (runID, requestID, Sample)
 DELIVERY_ROOT = "/igo/delivery/share/%s/Project_%s/%s" # (labName, requestID, trimmedRun)
+DELIVERY = "/igo/delivery/"
+
+if socket.gethostname().startswith("isvigoacl01"):
+    print("Setting default paths for SDC")
+    FASTQ_ROOT = "/ifs/datadelivery/igo_core/FASTQ/%s/Project_%s/%s" # (runID, requestID, Sample)
+    DELIVERY_ROOT = "/ifs/datadelivery/igo_core/share/%s/Project_%s/%s" # (labName, requestID, trimmedRun)
+    DELIVERY = "/ifs/datadelivery/igo_core/"
 
 # given requestID as input and get json dictionary as return
 def get_NGS_stats(reqID):
@@ -24,8 +32,9 @@ class NGS_Stats:
         self.labName = stats_json["labName"]      # name of delivery folder
         self.fastq_list = stats_json["fastqs"]    # list of original fastq files need to be linked
         self.samples = self.get_sample_run_dict() # dictionary of sample -> runs from fastq list
-        self.requestName = stats_json["requestName"] # requestName in order to seperate nanopore project from others.
-        self.isDLP = stats_json["isDLP"]
+        self.requestName = stats_json["requestName"] # requestName
+        self.isDLP = stats_json["isDLP"] # 
+
     # get dictionary of sample -> run by fastq_list
     def get_sample_run_dict(self):
         samples = {}
@@ -42,6 +51,7 @@ class NGS_Stats:
 
 def trimRunID(runID):
     trimmedRun = re.match("([A-Za-z0-9]+_[0-9]+).*", runID).groups()[0]
+    print("Trimmed Run: {}".format(trimmedRun))
     return trimmedRun
 
 # given reqID, sample and list of runs, if trimmedRun are same, keep only latest runID
@@ -61,12 +71,10 @@ def updateRun(runs, reqID, sample):
         else:
             source = runID[0]
             for possibleRun in runID:
-                source_path = "/igo/delivery/FASTQ/{}/Project_{}/{}".format(source, reqID, sample)
-                possibleRun_path = "/igo/delivery/FASTQ/{}/Project_{}/{}".format(possibleRun, reqID, sample)
-                # check if folder exists before create link for cases that project contains old samples eg: 08822
-                if os.path.exists(source_path) and os.path.exists(possibleRun_path):
-                    if os.path.getmtime(possibleRun_path) > os.path.getmtime(source_path):
-                        source = possibleRun
+                source_path = DELIVERY + "FASTQ/{}/Project_{}/{}".format(source, reqID, sample)
+                possibleRun_path = DELIVERY + "FASTQ/{}/Project_{}/{}".format(possibleRun, reqID, sample)
+                if os.path.getmtime(possibleRun_path) > os.path.getmtime(source_path):
+                    source = possibleRun
             updatedRuns.append(source)
 
     return updatedRuns
@@ -79,16 +87,18 @@ def link_by_request(reqID):
     json_info = get_NGS_stats(reqID)
     stats = NGS_Stats(json_info)
     labName = stats.labName
+    recipe = stats.requestName
     request_name = stats.requestName
     isDLP = stats.isDLP
-    
+    print("Recipe: " + recipe)
+
     # check if lab folder exist, if not create one
-    labDir = "/igo/delivery/share/%s" % (labName)
-    projDir = "/igo/delivery/share/%s/Project_%s" % (labName, reqID)
+    labDir = DELIVERY + "share/%s" % (labName)
+    projDir = DELIVERY + "share/%s/Project_%s" % (labName, reqID)
     if not os.path.exists(labDir):
         cmd = "mkdir " + labDir
         subprocess.run(cmd, shell=True)
-        cmd = "chmod +rx " + labDir  
+        cmd = "chmod +rx " + labDir
         subprocess.run(cmd, shell=True) # piDir is always readable by all, Project dirs are not
 
     # then change project dirs to not world readable
@@ -105,21 +115,21 @@ def link_by_request(reqID):
     madeDir = []
     # create symbol links for each sample
     # if it is DLP only create link for the run not each sample
-    if isDLP:
+    if isDLP :
+        print("Linking DLP run")
         # get fastq file folder path instead of each fastq
         fastq_directories = set()
         for fastq in stats.fastq_list:
             fastq_directories.add(os.path.dirname(fastq))
-        
+
         # create link for each folder path
         for fastq_dir in fastq_directories:
-            # destination link named by project/runID
             dlink = projDir + "/" + fastq_dir.split('/')[-2]
             slink = fastq_dir
             cmd = "ln -sf {} {}".format(slink, dlink)
             print(cmd)
             subprocess.run(cmd, shell=True)
-    # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
+            # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
     elif request_name == "Nanopore":
         # find project data folder
         parent_dir = "/igo/delivery/nanopore/"
@@ -133,7 +143,6 @@ def link_by_request(reqID):
                 cmd = "ln -sf {} {}".format(slink, dlink)
                 print(cmd)
                 subprocess.run(cmd, shell=True)
-
     else:
         for sample, runs in stats.samples.items():
             updated_runs = updateRun(runs, reqID, sample)
@@ -146,14 +155,11 @@ def link_by_request(reqID):
                     madeDir.append(dlink)
                     subprocess.run(cmd, shell=True)
                 slink = FASTQ_ROOT % (run, reqID, sample)
-                # check if folder exists before create link for cases that project contains old samples eg: 08822
-                if os.path.exists(slink):
-                    cmd = "ln -sf {} {}".format(slink, dlink)
-                    print (cmd)
-                    subprocess.run(cmd, shell=True)
-                else:
-                    print("{} not exits".format(slink))
-    
+                
+                cmd = "ln -sf {} {}".format(slink, dlink)
+                print (cmd)
+                subprocess.run(cmd, shell=True)
+
     setaccess.set_request_acls(reqID, "")
 
 # loop link_by_request method by time peirod, time as argument, unit will be min
