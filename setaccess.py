@@ -146,6 +146,11 @@ class RequestPermissions:
                 set_acl_command_yaml = "{} {}/*.yaml".format(command_prefix, sample_folder)
                 print(set_acl_command_yaml)
                 os.system(set_acl_command_yaml)
+            if glob.glob("{}/*.fld".format(sample_folder)): # if os.system("test -f {}/*.fld".format(sample_folder)) == 0:
+                set_acl_command_fld = "{} {}/*.fld".format(command_prefix, sample_folder)
+                print(set_acl_command_fld)
+                os.system(set_acl_command_fld)
+
             run_folder = str(sample_folder.parent)
             if run_folder.endswith("DLP"):
                 reports_folder = run_folder + "/Reports"
