@@ -198,6 +198,10 @@ class RequestPermissions:
         temp_file = open(temp_file_path, "w")  # open to overwrite any existing content
         temp_file.write(self.get_acls())
         temp_file.close()
+        if self.request_share_exists():
+            acl_file_copy_path = self.request_share_path + "/acl_permissions.txt"
+            print("Copying ACL permissions file to {}".format(acl_file_copy_path))
+            shutil.copy(temp_file_path, acl_file_copy_path)
 
         return temp_file_path
 
