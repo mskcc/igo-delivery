@@ -9,7 +9,7 @@ import glob
 # Group accounts have different names in the SDC and LDC datacenters which are:
 #  cmoigo -> GRP_CMO_SEQ
 #  bicigo -> GRP_BIC_SEQ
-#  isabl  -> grp_papaemme_isabl
+#  isabl  -> grp_papaemme_seq
 #  shahbot-> SVC_shahs3_bot
               
 special_group_accounts = ["cmoigo", "bicigo", "isabl"]
@@ -240,7 +240,7 @@ class RequestPermissions:
             if DOMAIN == "LDC":  # first data center, these are the group names used in the database
                 acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
             if DOMAIN == "SDC" and group_name == "isabl":  
-                group_name = "grp_papaemme_isabl"
+                group_name = "grp_papaemme_seq"
                 acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
 
         print("Checking if each account exists for all user IDs before trying to add the ACL with the id command")
