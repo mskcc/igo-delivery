@@ -14,6 +14,9 @@ import glob
               
 special_group_accounts = ["cmoigo", "bicigo", "isabl"]
 
+bic_group_members = ["byrnec","kazmierk","khaninr","pirunm","soccin","songt","sonzoge","vurals","webbera","wilsonm2"]
+cmo_group_members = ["ivkovics","pankeyd","kumarn1","bolipatc","buehlere","vanna1","shahr2","sumans","noronhaa","orgeraj","gongy","pricea2","pintoa1"]
+
 DLP_REQUIRED_ACCESS_LIST = ["havasove", "shahbot", "mcphera1", "grewald"]
 TCRSEQ_REQUIRED_ACCESS_LIST = ["elhanaty","greenbab","lih7","havasove"]
 ACL_TEMP_DIR = "/tmp/acls/"
@@ -242,6 +245,12 @@ class RequestPermissions:
             if DOMAIN == "SDC" and group_name == "isabl":  
                 group_name = "grp_papaemme_seq"
                 acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
+            if DOMAIN == "SDC" and group_name == "bicigo":
+                print("Adding bic group user list to access")
+                users_set.update(bic_group_members)
+            if DOMAIN == "SDC" and group_name == "cmoigo":
+                print("Adding cmo group user list to access")
+                users_set.update(cmo_group_members)
 
         print("Checking if each account exists for all user IDs before trying to add the ACL with the id command")
         for user in users_set:
