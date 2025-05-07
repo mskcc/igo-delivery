@@ -30,7 +30,7 @@ function rsync_run {
      then
       echo "$0: rsync #1 error on $RUN"
       echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN"
-      echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #1 error on $RUN" mcmanamd@mskcc.org
+      echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #1 error on $RUN" naborsd@mskcc.org,luc@mskcc.org
     fi # [ $? != 0 ]
 
     /usr/bin/chmod +x $DEST/$RUN
@@ -42,7 +42,7 @@ function rsync_run {
      then
       echo "$0: rsync #2 error on $RUN"
       echo "Failed command: $RSYNC -v                                       $SOURCE/$RUN $DEST/$RUN"
-      echo "Failed command: $RSYNC -v                                       $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #2 error on $RUN" mcmanamd@mskcc.org
+      echo "Failed command: $RSYNC -v                                       $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #2 error on $RUN" naborsd@mskcc.org,luc@mskcc.org
     fi # [ $? != 0 ]
 
     echo "Archived $SOURCE/$RUN to $DEST/$RUN `date`"
