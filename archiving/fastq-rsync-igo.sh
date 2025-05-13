@@ -49,7 +49,7 @@ function rsync_run {
     chgrp -R igo $DEST/$RUN
     find "/nfs4/$DEST/$RUN" -type d -exec nfs4_setfacl -S "/igo/delivery/FASTQ/acl_entries_groups.txt" {} \;
     find "/nfs4/$DEST/$RUN" -type f -exec nfs4_setfacl -S "/igo/delivery/FASTQ/acl_entries.txt" {} \;
-    curl "http://delphi.mskcc.org:8080/ngs-stats/rundone/fastq/$RUN" &
+    curl "http://igodb.mskcc.org:8080/ngs-stats/rundone/fastq/$RUN" &
     exec /usr/bin/chmod +x $DEST/$RUN
     # if there is a POOLEDNORMALS project directory give BIC read access
     [ -d "$DEST/$RUN/Project_POOLEDNORMALS" ] && find "/nfs4/$DEST/$RUN/Project_POOLEDNORMALS" -type f -exec nfs4_setfacl -S "/igo/delivery/FASTQ/acl_entries_groups.txt" {} \;
