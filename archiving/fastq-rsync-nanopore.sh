@@ -32,7 +32,7 @@ function rsync_run {
       echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #1 error on $RUN" skigodata@mskcc.org
     fi # [ $? != 0 ]
 
-    /usr/bin/chmod +x $DEST/$RUN
+    exec /usr/bin/chmod +x $DEST/$RUN
 
     date >> $RUN$ARCHFILE
     # Copy again, and this time include the new marker file
