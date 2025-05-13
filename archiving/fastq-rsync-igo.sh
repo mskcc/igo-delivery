@@ -42,7 +42,7 @@ function rsync_run {
      then
       echo "$0: rsync #2 error on $RUN"
       echo "Failed command: $RSYNC -v                                       $SOURCE/$RUN $DEST/$RUN"
-      echo "Failed command: $RSYNC -v                                       $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #2 error on $RUN" naborsd@mskcc.org,luc@mskcc.org
+      echo "Failed command: $RSYNC -v                                       $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #2 error on $RUN" skigodata@mskcc.org
     fi # [ $? != 0 ]
 
     echo "Archived $SOURCE/$RUN to $DEST/$RUN `date`"
