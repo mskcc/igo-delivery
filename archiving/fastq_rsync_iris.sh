@@ -7,7 +7,7 @@ SOURCE=/igo/staging/FASTQ
 DEST=/ifs/datadelivery/igo_core/FASTQ/
 LOCK=~/.md5locks/storage-FASTQ.lock
 READYFILE=fastq.md5.input
-RSYNC="rsync --dry-run -a --no-links --exclude=*.cif --exclude=*.bcl --exclude=*.bcl.gz --exclude=nohup.out --exclude=*Undetermined_*.fastq.gz "
+RSYNC="rsync -a --no-links --exclude=*.cif --exclude=*.bcl --exclude=*.bcl.gz --exclude=nohup.out --exclude=*Undetermined_*.fastq.gz "
 
 if [ -f $LOCK ]
  then
