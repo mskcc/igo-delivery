@@ -7,7 +7,7 @@ SOURCE=/igo/staging/FASTQ
 DEST=/ifs/datadelivery/igo_core/FASTQ/
 LOCK=~/.md5locks/storage-FASTQ.lock
 READYFILE=fastq.md5.input
-RSYNC="rsync -a --no-links --exclude=*.cif --exclude=*.bcl --exclude=*.bcl.gz --exclude=nohup.out --exclude=*Undetermined_*.fastq.gz "
+RSYNC="rsync --dry-run -a --no-links --exclude=*.cif --exclude=*.bcl --exclude=*.bcl.gz --exclude=nohup.out --exclude=*Undetermined_*.fastq.gz "
 
 if [ -f $LOCK ]
  then
@@ -21,7 +21,6 @@ echo "Starting  $0. `date`"
 
 function rsync_run {
     RUN=$1
-    chmod +x $SOURCE/$RUN
 
     echo "Archiving $SOURCE/$RUN `date`"
     $RSYNC --exclude=$ARCHFILE $SOURCE/$RUN $DEST/$RUN
