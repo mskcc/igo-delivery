@@ -133,7 +133,7 @@ def link_by_request(reqID):
 
         # create link for each folder path
         for fastq_dir in fastq_directories:
-            dlink = projDir + "/" + fastq_dir.split('/')[-2]
+            dlink = projDir
             slink = fastq_dir
             cmd = "ln -sf {} {}".format(slink, dlink)
             print(cmd)
