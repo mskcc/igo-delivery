@@ -14,8 +14,8 @@ import glob
               
 special_group_accounts = ["cmoigo", "bicigo", "isabl"]
 
-bic_group_members = ["byrnec","kazmierk","khaninr","pirunm","soccin","songt","sonzoge","vurals","webbera","wilsonm2"]
-cmo_group_members = ["ivkovics","pankeyd","kumarn1","bolipatc","buehlere","vanna1","shahr2","sumans","noronhaa","orgeraj","gongy","pricea2","pintoa1"]
+bic_group_members = ["byrnec","kazmierk","khaninr","pirunm","soccin","songt","sonzoge","vurals","webbera","wilsonm2","svc_core005_bot01","svc_core005_bot02","svc_core005_bot03","svc_core005_bot04"]
+cmo_group_members = ["ivkovics","pankeyd","kumarn1","bolipatc","buehlere","vanna1","shahr2","sumans","noronhaa","orgeraj","gongy","pricea2","pintoa1","svc_core005_bot01","svc_core005_bot02","svc_core005_bot03","svc_core005_bot04"]
 
 DLP_REQUIRED_ACCESS_LIST = ["havasove", "shahbot", "mcphera1", "grewald"]
 TCRSEQ_REQUIRED_ACCESS_LIST = ["elhanaty","greenbab","lih7","havasove"]
