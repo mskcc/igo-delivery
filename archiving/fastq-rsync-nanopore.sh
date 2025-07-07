@@ -32,7 +32,7 @@ function rsync_run {
       echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #1 error on $RUN" skigodata@mskcc.org
     fi # [ $? != 0 ]
 
-    exec /usr/bin/chmod +x $DEST/$RUN
+    /usr/bin/chmod +x $DEST/$RUN
 
     date >> $RUN$ARCHFILE
     # Copy again, and this time include the new marker file
@@ -47,8 +47,8 @@ function rsync_run {
     echo "Archived $SOURCE/$RUN to $DEST/$RUN `date`"
     chgrp -R igo $DEST/$RUN
     nfs4_setfacl -R -S "/igo/delivery/FASTQ/acl_entries.txt" /nfs4/$DEST/$RUN
-    exec /usr/bin/chmod +x $DEST/$RUN
-    echo "Hashed and archived: $RUN" | mail -s "Hashed and archived: $RUN" mcmanamd@mskcc.org,naborsd@mskcc.org,luc@mskcc.org
+    /usr/bin/chmod +x $DEST/$RUN
+    echo "Hashed and archived: $RUN" | mail -s "Hashed and archived: $RUN" timalr@mskcc.org,naborsd@mskcc.org,luc@mskcc.org
     curl "http://delphi.mskcc.org:8080/ngs-stats/rundone/fastq/$RUN" &
 }
 
