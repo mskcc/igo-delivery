@@ -40,6 +40,9 @@ def determineDataAccessRecipients(deliveryDesc, recipients, recipe, addressMap):
         ccList += addressMap['pipelineDefault']
     elif "CCS" in analysisType:
         ccList += addressMap['ccs']
+    # if NeoAg is selected
+    if deliveryDesc.isNeoAg:
+        ccList += addressMap["NeoAg"]
 
     return (toList, ccList)
 

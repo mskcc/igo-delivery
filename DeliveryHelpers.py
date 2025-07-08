@@ -54,6 +54,7 @@ class DeliveryDescription:
         self.requestType = ""
         if "requestType" in queryDict:
             self.requestType = queryDict["requestType"]
+        self.isNeoAg = queryDict["isNeoAg"]
 
     def setUserName(self, nicknameMapping):
         userName = self.piEmail.split("@")[0]
