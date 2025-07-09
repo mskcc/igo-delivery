@@ -6,19 +6,19 @@ from pathlib import Path
 import requests
 import glob
 
-# Group accounts have different names in the SDC and LDC datacenters which are:
-#  cmoigo -> GRP_CMO_SEQ
-#  bicigo -> GRP_BIC_SEQ
-#  isabl  -> grp_papaemme_seq
-#  shahbot-> SVC_shahs3_bot
+# Group accounts have different names in the SDC and LDC datacenters LDC name(key):SDC name(value)
+# not a group but also have different name: shahbot -> SVC_shahs3_bot
+SDC_group_name_map = {
+    "cmoigo": "grp_hpc_core005",
+    "bicigo": "grp_hpc_core001",
+    "isabl": "grp_papaemme_seq",
+}
               
 special_group_accounts = ["cmoigo", "bicigo", "isabl"]
 
-bic_group_members = ["byrnec","kazmierk","khaninr","pirunm","soccin","songt","sonzoge","vurals","webbera","wilsonm2","svc_core005_bot01","svc_core005_bot02","svc_core005_bot03","svc_core005_bot04"]
-cmo_group_members = ["ivkovics","pankeyd","kumarn1","bolipatc","buehlere","vanna1","shahr2","sumans","noronhaa","orgeraj","gongy","pricea2","pintoa1","svc_core005_bot01","svc_core005_bot02","svc_core005_bot03","svc_core005_bot04"]
-
 DLP_REQUIRED_ACCESS_LIST = ["havasove", "shahbot", "mcphera1", "grewald"]
 TCRSEQ_REQUIRED_ACCESS_LIST = ["elhanaty","greenbab","lih7","havasove"]
+NEOAG_REQUIRED_ACCESS_LIST = ["SVC_greenbab_bot02", "SVC_greenbab_bot03"]
 ACL_TEMP_DIR = "/tmp/acls/"
 NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
 NGS_STATS_ENDPOINT_LAB = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getLabPermissions/"
@@ -75,7 +75,7 @@ def get_request_metadata(request, lab_name):
     if 'status' in r.keys() and r['status'] == 500:
         return None
     return RequestPermissions(r['labName'], r['labMembers'], r['request'], r['requestName'], r['requestReadAccess'], r['requestGroups'], r['dataAccessEmails'], r['fastqs'], r['isDLP'])
-
+# to be added, isNeoAg field
 
 def get_lab_metadata(lab_name, request):
     url = NGS_STATS_ENDPOINT_LAB + lab_name
@@ -89,7 +89,7 @@ def get_lab_metadata(lab_name, request):
 
 # fields from LIMS and fastq databases used to determine all ACLs
 class RequestPermissions:
-    def __init__(self, lab, members, request, requestName, request_members, groups, dataAccessEmails, fastqs, isDLP):
+    def __init__(self, lab, members, request, requestName, request_members, groups, dataAccessEmails, fastqs, isDLP, isNeoAg = False):
         self.lab = lab
         self.members = members  # members of the lab
         self.request = request  # request ID such as 08822_X
@@ -100,6 +100,7 @@ class RequestPermissions:
         self.fastqs = fastqs  # list of fastqs per request
         self.request_share_path = LAB_SHARE_PATH + self.lab + "/Project_" + self.request
         self.isDLP = isDLP
+        self.isNeoAg = isNeoAg
 
         if self.isDLP:
             print("DLP requests must give access to {} ".format(DLP_REQUIRED_ACCESS_LIST))
@@ -107,6 +108,9 @@ class RequestPermissions:
         if "TCRSeq" in self.request_name:
             print("TCRSeq requests must give access to {} ".format(TCRSEQ_REQUIRED_ACCESS_LIST))
             self.data_access_emails.extend(TCRSEQ_REQUIRED_ACCESS_LIST)
+        if self.isNeoAg:
+            print("NeoAg requests must give access to {} ".format(NEOAG_REQUIRED_ACCESS_LIST))
+            self.data_access_emails.extend(NEOAG_REQUIRED_ACCESS_LIST)
 
     # Grants ACLs to all fastq.gz files in a project, parent folders for the fastqs and SampleSheet.csv
     # For DLP runs ending in 'DLP' DIANA_0294_AHTGLJDSXY_DLP, grants read access to the 'Reports' and 'Stats' folders
@@ -238,19 +242,12 @@ class RequestPermissions:
 
         acls = ""
         # Let's put groups on the top then individuals
-        for group_name in groups_set:  # group names are different in each data center
+        for group_name in groups_set:  
+            # group names are different in each data center so update the name for SDC cluster
             # TODO check if group name is valid?
-            if DOMAIN == "LDC":  # first data center, these are the group names used in the database
-                acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
-            if DOMAIN == "SDC" and group_name == "isabl":  
-                group_name = "grp_papaemme_seq"
-                acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
-            if DOMAIN == "SDC" and group_name == "bicigo":
-                print("Adding bic group user list to access")
-                users_set.update(bic_group_members)
-            if DOMAIN == "SDC" and group_name == "cmoigo":
-                print("Adding cmo group user list to access")
-                users_set.update(cmo_group_members)
+            if DOMAIN == "SDC" and group_name in SDC_group_name_map.keys():  
+                group_name = SDC_group_name_map[group_name]
+            acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
 
         print("Checking if each account exists for all user IDs before trying to add the ACL with the id command")
         for user in users_set:
