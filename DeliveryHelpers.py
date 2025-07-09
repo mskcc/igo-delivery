@@ -40,12 +40,13 @@ class DeliveryDescription:
         self.recipe = ""
         self.species = ""
         self.projectName = ""
-        for sample in queryDict["samples"]:
-            self.samples.append(SampleDescription(sample))
-            if "recipe" in sample and sample["recipe"] != "":
-                self.recipe = sample["recipe"]
-            if "species" in sample and sample["species"] != "":
-                self.species = sample["species"]
+        if len(queryDict["samples"]) > 0:
+            for sample in queryDict["samples"]:
+                self.samples.append(SampleDescription(sample))
+                if "recipe" in sample and sample["recipe"] != "":
+                    self.recipe = sample["recipe"]
+                if "species" in sample and sample["species"] != "":
+                    self.species = sample["species"]
         self.piEmail = ""
         self.investigatorEmail = ""
         self.additionalEmails = ""
