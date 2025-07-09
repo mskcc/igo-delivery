@@ -28,7 +28,7 @@ function rsync_run {
      then
       echo "$0: rsync #1 error on $RUN"
       echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN"
-      echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #1 error on $RUN" naborsd@mskcc.org,luc@mskcc.org
+      echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #1 error on $RUN" timalr@mskcc.org,naborsd@mskcc.org,luc@mskcc.org
     fi # [ $? != 0 ]
 
     /usr/bin/chmod +x $DEST/$RUN
@@ -44,6 +44,8 @@ function rsync_run {
     fi # [ $? != 0 ]
 
     echo "Archived $SOURCE/$RUN to $DEST/$RUN `date`"
+    echo "Archived $SOURCE/$RUN to $DEST/$RUN `date` on IRIS" | mail -s "Hashed and archived: $RUN" timalr@mskcc.org,naborsd@mskcc.org,luc@mskcc.org
+
     #chgrp -R igo $DEST/$RUN
 }
 
