@@ -27,7 +27,7 @@ for RUN in $RUNS
      
      RUNNAME=$(basename $RUN)
      curl "http://igodb.mskcc.org:8080/ngs-stats/rundone/fastq/$RUNNAME" &
-     (diff -qs fastq.md5.input fastq.md5.archive; wc -l fastq.md5.*) | mail -s "Hashed and archived: $RUN" mcmanamd@mskcc.org,luc@mskcc.org,naborsd@mskcc.org
+     (diff -qs fastq.md5.input fastq.md5.archive; wc -l fastq.md5.*) | mail -s "Hashed and archived: $RUN" timalr@mskcc.org,luc@mskcc.org,naborsd@mskcc.org
    fi # [ -e $READYFILE -a ! -e $TYPE.md5.archive ]
  done
 
