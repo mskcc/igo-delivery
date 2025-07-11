@@ -19,6 +19,7 @@ cmo_group_members = ["ivkovics","pankeyd","kumarn1","bolipatc","buehlere","vanna
 
 DLP_REQUIRED_ACCESS_LIST = ["havasove", "shahbot", "mcphera1", "grewald"]
 TCRSEQ_REQUIRED_ACCESS_LIST = ["elhanaty","greenbab","lih7","havasove"]
+NEOAG_REQUIRED_ACCESS_LIST = ["SVC_greenbab_bot02", "SVC_greenbab_bot03"]
 ACL_TEMP_DIR = "/tmp/acls/"
 NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
 NGS_STATS_ENDPOINT_LAB = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getLabPermissions/"
@@ -74,7 +75,7 @@ def get_request_metadata(request, lab_name):
     # 'status': 500, 'error': 'Internal Server Error',
     if 'status' in r.keys() and r['status'] == 500:
         return None
-    return RequestPermissions(r['labName'], r['labMembers'], r['request'], r['requestName'], r['requestReadAccess'], r['requestGroups'], r['dataAccessEmails'], r['fastqs'], r['isDLP'])
+    return RequestPermissions(r['labName'], r['labMembers'], r['request'], r['requestName'], r['requestReadAccess'], r['requestGroups'], r['dataAccessEmails'], r['fastqs'], r['isDLP'], r['isNeoAg'])
 
 
 def get_lab_metadata(lab_name, request):
@@ -89,7 +90,7 @@ def get_lab_metadata(lab_name, request):
 
 # fields from LIMS and fastq databases used to determine all ACLs
 class RequestPermissions:
-    def __init__(self, lab, members, request, requestName, request_members, groups, dataAccessEmails, fastqs, isDLP):
+    def __init__(self, lab, members, request, requestName, request_members, groups, dataAccessEmails, fastqs, isDLP, isNeoAg = False):
         self.lab = lab
         self.members = members  # members of the lab
         self.request = request  # request ID such as 08822_X
@@ -100,6 +101,7 @@ class RequestPermissions:
         self.fastqs = fastqs  # list of fastqs per request
         self.request_share_path = LAB_SHARE_PATH + self.lab + "/Project_" + self.request
         self.isDLP = isDLP
+        self.isNeoAg = isNeoAg
 
         if self.isDLP:
             print("DLP requests must give access to {} ".format(DLP_REQUIRED_ACCESS_LIST))
@@ -107,6 +109,9 @@ class RequestPermissions:
         if "TCRSeq" in self.request_name:
             print("TCRSeq requests must give access to {} ".format(TCRSEQ_REQUIRED_ACCESS_LIST))
             self.data_access_emails.extend(TCRSEQ_REQUIRED_ACCESS_LIST)
+        if self.isNeoAg:
+            print("NeoAg requests must give access to {} ".format(NEOAG_REQUIRED_ACCESS_LIST))
+            self.data_access_emails.extend(NEOAG_REQUIRED_ACCESS_LIST)
 
     # Grants ACLs to all fastq.gz files in a project, parent folders for the fastqs and SampleSheet.csv
     # For DLP runs ending in 'DLP' DIANA_0294_AHTGLJDSXY_DLP, grants read access to the 'Reports' and 'Stats' folders
