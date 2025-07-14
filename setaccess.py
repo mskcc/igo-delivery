@@ -75,7 +75,11 @@ def get_request_metadata(request, lab_name):
     # 'status': 500, 'error': 'Internal Server Error',
     if 'status' in r.keys() and r['status'] == 500:
         return None
-    return RequestPermissions(r['labName'], r['labMembers'], r['request'], r['requestName'], r['requestReadAccess'], r['requestGroups'], r['dataAccessEmails'], r['fastqs'], r['isDLP'], r['isNeoAg'])
+    if "isNeoAg" in r.keys():
+        request_info = RequestPermissions(r['labName'], r['labMembers'], r['request'], r['requestName'], r['requestReadAccess'], r['requestGroups'], r['dataAccessEmails'], r['fastqs'], r['isDLP'], r['isNeoAg'])
+    else:
+        request_info = RequestPermissions(r['labName'], r['labMembers'], r['request'], r['requestName'], r['requestReadAccess'], r['requestGroups'], r['dataAccessEmails'], r['fastqs'], r['isDLP'])
+    return request_info
 
 
 def get_lab_metadata(lab_name, request):
