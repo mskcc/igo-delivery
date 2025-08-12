@@ -6,12 +6,13 @@ from pathlib import Path
 import requests
 import glob
 
-# Group accounts have different names in the SDC and LDC datacenters which are:
-#  cmoigo -> GRP_CMO_SEQ
-#  bicigo -> GRP_BIC_SEQ
-#  isabl  -> grp_papaemme_seq
-#  shahbot-> SVC_shahs3_bot
-              
+# Group accounts have different names in the SDC and LDC datacenters LDC name(key):SDC name(value)
+# not a group but also have different name: shahbot -> SVC_shahs3_bot
+SDC_group_name_map = {
+    "cmoigo": "grp_donoghum_seq",
+    "bicigo": "grp_core001_seq",
+    "isabl": "grp_papaemme_seq",
+}    
 special_group_accounts = ["cmoigo", "bicigo", "isabl"]
 
 bic_group_members = ["byrnec","kazmierk","khaninr","pirunm","soccin","songt","sonzoge","vurals","webbera","wilsonm2","svc_core005_bot01","svc_core005_bot02","svc_core005_bot03","svc_core005_bot04"]
@@ -247,19 +248,12 @@ class RequestPermissions:
 
         acls = ""
         # Let's put groups on the top then individuals
-        for group_name in groups_set:  # group names are different in each data center
+        for group_name in groups_set:  
+            # group names are different in each data center so update the name for SDC cluster
             # TODO check if group name is valid?
-            if DOMAIN == "LDC":  # first data center, these are the group names used in the database
-                acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
-            if DOMAIN == "SDC" and group_name == "isabl":  
-                group_name = "grp_papaemme_seq"
-                acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
-            if DOMAIN == "SDC" and group_name == "bicigo":
-                print("Adding bic group user list to access")
-                users_set.update(bic_group_members)
-            if DOMAIN == "SDC" and group_name == "cmoigo":
-                print("Adding cmo group user list to access")
-                users_set.update(cmo_group_members)
+            if DOMAIN == "SDC" and group_name in SDC_group_name_map.keys():  
+                group_name = SDC_group_name_map[group_name]
+            acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
 
         print("Checking if each account exists for all user IDs before trying to add the ACL with the id command")
         for user in users_set:
