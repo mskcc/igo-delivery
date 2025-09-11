@@ -29,3 +29,16 @@ python3 setaccess.py LABSHAREDIR=abc
 ```
 python3 setaccess.py ARCHIVEDWITHINLAST=30
 ```
+4. If you need to run multiple projects for linking or granting access, create a bash file for example link.sh, the example content as follow:
+```
+python3 setaccess.py REQUEST=10805_B;
+python3 setaccess.py REQUEST=10805_C;
+python3 setaccess.py REQUEST=10805_D;
+python3 setaccess.py REQUEST=10805_G;
+python3 setaccess.py REQUEST=10805_L;
+```
+Then run the following command
+```
+bash link.sh
+```
+
