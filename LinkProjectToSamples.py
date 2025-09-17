@@ -197,7 +197,14 @@ def link_by_request(reqID):
                     subprocess.run(cmd, shell=True)
                 slink = FASTQ_ROOT % (run, reqID, sample)
                 # check if the file has status of failed
-                if run_sample_qc["_".join(run.split("_")[:3])][sample]["qcstatus"] == "Failed":
+                run_key = "_".join(run.split("_")[:3])
+                qcstatus = (
+                    run_sample_qc
+                    .get(run_key, {})   # run might not exist
+                    .get(sample, {})    # sample might not exist
+                    .get("qcstatus")    # qcstatus might not exist
+                )
+                if qcstatus is None or qcstatus == "Failed":
                     print("{} from run {} failed, don't deliver".format(sample, run))
                 else:
                     # check if folder exists before create link for cases that project contains old samples eg: 08822
