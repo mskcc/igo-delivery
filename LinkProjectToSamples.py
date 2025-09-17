@@ -10,7 +10,7 @@ import sys
 import setaccess
 
 NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
-LIMS_ENDPOINT = "https://igolims.mskcc.org:8443/LimsRest/getProjectQc?project="
+LIMS_ENDPOINT = "https://igolims.mskcc.org:8443/LimsRest"
 FASTQ_ROOT = "/igo/delivery/FASTQ/%s/Project_%s/%s" # (runID, requestID, Sample)
 DELIVERY_ROOT = "/igo/delivery/share/%s/Project_%s/%s" # (labName, requestID, trimmedRun)
 DELIVERY = "/igo/delivery/"
@@ -37,7 +37,7 @@ def get_NGS_stats(reqID):
     return(response.json())
 
 def get_qc_stats(reqID):
-    qc_query_url = LIMS_ENDPOINT + reqID
+    qc_query_url = LIMS_ENDPOINT + "/getProjectQc?project=" + reqID
     try:
         response = requests.get(qc_query_url, auth=(username, password), verify=False)
         response.raise_for_status()
@@ -223,7 +223,7 @@ def link_by_request(reqID):
 # step 3 call link_by_request for each project in the updated list
 
 def get_recent_delivery(time):
-    url = "https://igolims.mskcc.org:8443/LimsRest/getRecentDeliveries?time={}&units=m".format(time)
+    url = "{}/getRecentDeliveries?time={}&units=m".format(LIMS_ENDPOINT, time)
     try:
         response = requests.get(url, auth=(username, password), verify=False)
         response.raise_for_status()
