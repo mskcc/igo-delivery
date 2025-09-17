@@ -189,12 +189,6 @@ def link_by_request(reqID):
             updated_runs = updateRun(runs, reqID, sample)
             for run in updated_runs:
                 dlink = DELIVERY_ROOT % (labName, reqID, trimRunID(run))
-                # check if lab/project/run folder exist, if not create one
-                if not os.path.exists(dlink) and dlink not in madeDir:
-                    cmd = "mkdir " + dlink
-                    print (cmd)
-                    madeDir.append(dlink)
-                    subprocess.run(cmd, shell=True)
                 slink = FASTQ_ROOT % (run, reqID, sample)
                 # check if the file has status of failed
                 run_key = "_".join(run.split("_")[:3])
@@ -209,6 +203,12 @@ def link_by_request(reqID):
                 else:
                     # check if folder exists before create link for cases that project contains old samples eg: 08822
                     if os.path.exists(slink):
+                        # check if lab/project/run folder exist, if not create one
+                        if not os.path.exists(dlink) and dlink not in madeDir:
+                            cmd = "mkdir " + dlink
+                            print(cmd)
+                            madeDir.append(dlink)
+                            subprocess.run(cmd, shell=True)
                         cmd = "ln -sf {} {}".format(slink, dlink)
                         print (cmd)
                         subprocess.run(cmd, shell=True)
