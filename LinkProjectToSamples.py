@@ -10,11 +10,17 @@ import sys
 import setaccess
 
 NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
+LIMS_ENDPOINT = "https://igolims.mskcc.org:8443/LimsRest"
 FASTQ_ROOT = "/igo/delivery/FASTQ/%s/Project_%s/%s" # (runID, requestID, Sample)
 DELIVERY_ROOT = "/igo/delivery/share/%s/Project_%s/%s" # (labName, requestID, trimmedRun)
 DELIVERY = "/igo/delivery/"
 NANOPORE_DELIVERY = "/igo/delivery/nanopore/"
 SDC=False
+
+file1 = open('ConnectLimsRest.txt', 'r')
+allLines = file1.readlines()
+username = allLines[0].strip()
+password = allLines[1].strip()
 
 if socket.gethostname().startswith("isvigoacl01"):
     print("Setting default paths for SDC")
@@ -30,6 +36,28 @@ def get_NGS_stats(reqID):
     response = requests.get(ngs_query_url, verify=False)
     return(response.json())
 
+def get_qc_stats(reqID):
+    qc_query_url = LIMS_ENDPOINT + "/getProjectQc?project=" + reqID
+    try:
+        response = requests.get(qc_query_url, auth=(username, password), verify=False)
+        response.raise_for_status()
+        run_sample_qc_info ={}
+        json_info = response.json()[0]["samples"]
+
+        for i in json_info:
+            run = i["qc"]["run"]
+            sample_name = "Sample_" + i["qc"]["sampleName"] + "_IGO_" + i["baseId"]
+            if run not in run_sample_qc_info:
+                run_sample_qc_info[run] = {}
+                run_sample_qc_info[run][sample_name] = {"recipe": i["recipe"], "qcstatus": i["qc"]["qcStatus"]}
+            else:
+                run_sample_qc_info[run][sample_name] = {"recipe": i["recipe"], "qcstatus": i["qc"]["qcStatus"]}
+
+        return run_sample_qc_info
+
+    except HTTPError as http_err:
+        print(f'HTTP error occurred: {http_err}')
+    
 # NGS_Stats class, need json from ngs endpoint to create.
 class NGS_Stats:
     def __init__(self, stats_json):
@@ -124,6 +152,7 @@ def link_by_request(reqID):
     madeDir = []
     # create symbol links for each sample
     # if it is DLP only create link for the run not each sample
+    run_sample_qc = get_qc_stats(reqID)
     if isDLP :
         print("Linking DLP run")
         # get fastq file folder path instead of each fastq
@@ -160,20 +189,31 @@ def link_by_request(reqID):
             updated_runs = updateRun(runs, reqID, sample)
             for run in updated_runs:
                 dlink = DELIVERY_ROOT % (labName, reqID, trimRunID(run))
-                # check if lab/project/run folder exist, if not create one
-                if not os.path.exists(dlink) and dlink not in madeDir:
-                    cmd = "mkdir " + dlink
-                    print (cmd)
-                    madeDir.append(dlink)
-                    subprocess.run(cmd, shell=True)
                 slink = FASTQ_ROOT % (run, reqID, sample)
-                # check if folder exists before create link for cases that project contains old samples eg: 08822
-                if os.path.exists(slink):
-                    cmd = "ln -sf {} {}".format(slink, dlink)
-                    print (cmd)
-                    subprocess.run(cmd, shell=True)
+                # check if the file has status of failed
+                run_key = "_".join(run.split("_")[:3])
+                qcstatus = (
+                    run_sample_qc
+                    .get(run_key, {})   # run might not exist
+                    .get(sample, {})    # sample might not exist
+                    .get("qcstatus")    # qcstatus might not exist
+                )
+                if qcstatus is None or qcstatus == "Failed":
+                    print("{} from run {} failed, don't deliver".format(sample, run))
                 else:
-                    print("{} not exits".format(slink))
+                    # check if folder exists before create link for cases that project contains old samples eg: 08822
+                    if os.path.exists(slink):
+                        # check if lab/project/run folder exist, if not create one
+                        if not os.path.exists(dlink) and dlink not in madeDir:
+                            cmd = "mkdir " + dlink
+                            print(cmd)
+                            madeDir.append(dlink)
+                            subprocess.run(cmd, shell=True)
+                        cmd = "ln -sf {} {}".format(slink, dlink)
+                        print (cmd)
+                        subprocess.run(cmd, shell=True)
+                    else:
+                        print("{} not exits".format(slink))
 
     setaccess.set_request_acls(reqID, "")
 
@@ -183,11 +223,7 @@ def link_by_request(reqID):
 # step 3 call link_by_request for each project in the updated list
 
 def get_recent_delivery(time):
-    file1 = open('ConnectLimsRest.txt', 'r')
-    allLines = file1.readlines()
-    username = allLines[0].strip()
-    password = allLines[1].strip()
-    url = "https://igolims.mskcc.org:8443/LimsRest/getRecentDeliveries?time={}&units=m".format(time)
+    url = "{}/getRecentDeliveries?time={}&units=m".format(LIMS_ENDPOINT, time)
     try:
         response = requests.get(url, auth=(username, password), verify=False)
         response.raise_for_status()
