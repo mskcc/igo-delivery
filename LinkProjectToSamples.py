@@ -203,14 +203,15 @@ def link_by_request(reqID):
                 else:
                     # check if folder exists before create link for cases that project contains old samples eg: 08822
                     if os.path.exists(slink):
+                        # check if recipe of the sample is SC_Chromium-Multiome-GEX or SC_Chromium-Multiome-ATAC, if yes append recipe to the folder name
+                        recipe = run_sample_qc[run_key][sample]["recipe"]
+                        if recipe == "SC_Chromium-Multiome-GEX":
+                            dlink = dlink + "_GEX"
+                        if recipe == "SC_Chromium-Multiome-ATAC":
+                            dlink = dlink + "_ATAC"
+
                         # check if lab/project/run folder exist, if not create one
                         if not os.path.exists(dlink) and dlink not in madeDir:
-                            # check if recipe of the sample is SC_Chromium-Multiome-GEX or SC_Chromium-Multiome-ATAC
-                            if run_sample_qc[run_key][sample]["recipe"] == "SC_Chromium-Multiome-GEX":
-                                dlink = dlink + "_GEX"
-                            if run_sample_qc[run_key][sample]["recipe"] == "SC_Chromium-Multiome-ATAC":
-                                dlink = dlink + "_ATAC"
-                                
                             cmd = "mkdir " + dlink
                             print(cmd)
                             madeDir.append(dlink)
