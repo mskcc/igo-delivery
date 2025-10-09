@@ -8,7 +8,7 @@ addressMap = {
     "pipelineDefault": ["bicrequest@mskcc.org"],
     "ski": ["skiinnovation@mskcc.org"],
     "CMO-CH": ["zzPDL_SKI_CMO_ACCESS@mskcc.org"],
-    "TCRSeq": ["elhanaty@mskcc.org","greenbab@mskcc.org","lih7@mskcc.org","havasove@mskcc.org"],
+    "TCRSeq": ["elhanaty@mskcc.org","greenbab@mskcc.org","lih7@mskcc.org","havasove@mskcc.org","moona2@mskcc.org"],
     "DLP": ["HavasovE@mskcc.org", "mcphera1@mskcc.org"],
     "NeoAg": ["occv_comp@mskcc.org"]
 }
