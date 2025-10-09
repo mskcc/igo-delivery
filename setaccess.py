@@ -19,7 +19,7 @@ bic_group_members = ["byrnec","kazmierk","khaninr","pirunm","soccin","songt","so
 cmo_group_members = ["ivkovics","pankeyd","kumarn1","bolipatc","buehlere","vanna1","shahr2","sumans","noronhaa","orgeraj","gongy","pricea2","pintoa1","svc_core005_bot01","svc_core005_bot02","svc_core005_bot03","svc_core005_bot04"]
 
 DLP_REQUIRED_ACCESS_LIST = ["havasove", "shahbot", "mcphera1", "grewald"]
-TCRSEQ_REQUIRED_ACCESS_LIST = ["elhanaty","greenbab","lih7","havasove","SVC_greenbab_bot02", "SVC_greenbab_bot03"]
+TCRSEQ_REQUIRED_ACCESS_LIST = ["elhanaty","greenbab","lih7","havasove","SVC_greenbab_bot02", "SVC_greenbab_bot03", "moona2@mskcc.org"]
 NEOAG_REQUIRED_ACCESS_LIST = ["SVC_greenbab_bot02", "SVC_greenbab_bot03"]
 ACL_TEMP_DIR = "/tmp/acls/"
 NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
