@@ -177,7 +177,7 @@ def main(mode, minutes):
         
             email = determineDataAccessContent(delivered)
             (toList, ccList) = determineDataAccessRecipients(delivered, recipients, recipe, copy.deepcopy(DeliveryConstants.addressMap))
-            if recipe == "SC_DLP":
+            if recipe == "SC_DLP" or recipe == "SC_SCD-WGS":
                 # query ngs_stats DB for all fastq paths for the project
                 request_metadata = setaccess.get_request_metadata(delivered.requestId, "none")
                 # from all fastq paths get the fastq.gz folder only (probably 1 folder with all fastq.gz files)
