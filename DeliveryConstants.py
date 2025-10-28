@@ -89,6 +89,7 @@ recipe_dict = {
     'SC_Chromium-Multiome': '10X Multiome',
     'SC_Chromium-TCR': '10X scVDJ (TCR) Sequencing',
     'SC_DLP': 'DLP+',
+    'SC_SCD-WGS': 'DLP+',
     'SC_SmartSeq': 'SmartSeq (384-well)',
     'ST_CosMx': 'CosMx',
     'ST_GeoMx': 'GeoMx',
