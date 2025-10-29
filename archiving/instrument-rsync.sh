@@ -60,7 +60,7 @@ for RUN in $RUNS  # ~30s when no work to do
      then
       echo "$0: rsync #1 error on $RUN"
       echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN"
-      echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #1 error on $RUN" timalr@mskcc.org,naborsd@mskcc.org,luc@mskcc.org
+      echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #1 error on $RUN" skigodata@mskcc.org
     fi # [ $? != 0 ]
 
     touch $ARCHFILEDIR$RUNNAME
