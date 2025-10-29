@@ -48,7 +48,7 @@ function rsync_run {
     chgrp -R igo $DEST/$RUN
     nfs4_setfacl -R -S "/igo/delivery/FASTQ/acl_entries.txt" /nfs4/$DEST/$RUN
     # /usr/bin/chmod +x $DEST/$RUN
-    echo "Hashed and archived: $RUN" | mail -s "Hashed and archived: $RUN" timalr@mskcc.org,naborsd@mskcc.org,luc@mskcc.org
+    echo "Hashed and archived: $RUN" | mail -s "Hashed and archived: $RUN" skigodata@mskcc.org
     curl "http://delphi.mskcc.org:8080/ngs-stats/rundone/fastq/$RUN" &
 }
 
