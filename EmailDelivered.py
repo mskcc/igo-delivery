@@ -35,7 +35,7 @@ def determineDataAccessRecipients(deliveryDesc, recipients, recipe, addressMap):
         ccList += addressMap["TCRSeq"]
     elif "TCR_AIR" in recipe:
         ccList += addressMap["TCRSeq"]
-       elif "DLP" in recipe:
+    elif "DLP" in recipe:
         ccList += addressMap["DLP"]
     # BY ANALYSIS TYPE
     elif "BIC" in analysisType:
