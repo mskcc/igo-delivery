@@ -46,7 +46,11 @@ def get_qc_stats(reqID):
 
         for i in json_info:
             run = i["qc"]["run"]
-            sample_name = "Sample_" + i["qc"]["sampleName"] + "_IGO_" + i["baseId"]
+            # Truncate baseId to first 3 parts (e.g., "17123_D_108" from "17123_D_108_1_2_1_1")
+            # to match the FASTQ folder naming convention
+            base_id_parts = i["baseId"].split("_")
+            short_base_id = "_".join(base_id_parts[:3])
+            sample_name = "Sample_" + i["qc"]["sampleName"] + "_IGO_" + short_base_id
             if run not in run_sample_qc_info:
                 run_sample_qc_info[run] = {}
                 run_sample_qc_info[run][sample_name] = {"recipe": i["recipe"], "qcstatus": i["qc"]["qcStatus"]}
