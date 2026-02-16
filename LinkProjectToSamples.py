@@ -8,6 +8,7 @@ import subprocess
 import time
 import sys
 import setaccess
+import LinkDLPProjectToSamples
 
 NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
 LIMS_ENDPOINT = "https://igolims.mskcc.org:8443/LimsRest"
@@ -44,13 +45,12 @@ def get_qc_stats(reqID):
         run_sample_qc_info ={}
         json_info = response.json()[0]["samples"]
 
+        # print(json_info)
+        # sys.exit()
+
         for i in json_info:
             run = i["qc"]["run"]
-            # Truncate baseId to first 3 parts (e.g., "17123_D_108" from "17123_D_108_1_2_1_1")
-            # to match the FASTQ folder naming convention
-            base_id_parts = i["baseId"].split("_")
-            short_base_id = "_".join(base_id_parts[:3])
-            sample_name = "Sample_" + i["qc"]["sampleName"] + "_IGO_" + short_base_id
+            sample_name = "Sample_" + i["qc"]["sampleName"] + "_IGO_" + i["baseId"]
             if run not in run_sample_qc_info:
                 run_sample_qc_info[run] = {}
                 run_sample_qc_info[run][sample_name] = {"recipe": i["recipe"], "qcstatus": i["qc"]["qcStatus"]}
@@ -124,6 +124,7 @@ def updateRun(runs, reqID, sample):
 def link_by_request(reqID):
     json_info = get_NGS_stats(reqID)
     stats = NGS_Stats(json_info)
+    print(vars(stats))
     labName = stats.labName
     request_name = stats.requestName # ie PEDPEG, SingleCell, etc.
     isDLP = stats.isDLP
@@ -156,26 +157,14 @@ def link_by_request(reqID):
     madeDir = []
     # create symbol links for each sample
     # if it is DLP only create link for the run not each sample
-    run_sample_qc = get_qc_stats(reqID)
-    if isDLP :
-        print("Linking DLP run")
-        # get fastq file folder path instead of each fastq
-        fastq_directories = set()
-        for fastq in stats.fastq_list:
-            fastq_directories.add(os.path.dirname(fastq))
-
-        # create link for each folder path
-        for fastq_dir in fastq_directories:
-            dlink = projDir + "/" + fastq_dir.split('/')[-2]
-            if not os.path.exists(dlink):
-                cmd = "mkdir " + dlink
-                subprocess.run(cmd, shell=True)
-            slink = fastq_dir
-            cmd = "ln -sf {} {}".format(slink, dlink)
-            print(cmd)
-            subprocess.run(cmd, shell=True)
+    
+    if isDLP:
+        LinkDLPProjectToSamples.main(["REQUEST=", request])
+    else:
+        run_sample_qc = get_qc_stats(reqID)
+        
     # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
-    elif request_name == "Nanopore":
+    if (request_name == "Nanopore") and (not isDLP):
         # find project data folder
         parent_dir = NANOPORE_DELIVERY
         project_list = os.listdir(parent_dir)
@@ -188,7 +177,7 @@ def link_by_request(reqID):
                 cmd = "ln -sf {} {}".format(slink, dlink)
                 print(cmd)
                 subprocess.run(cmd, shell=True)
-    else:
+    elif (not isDLP):
         for sample, runs in stats.samples.items():
             updated_runs = updateRun(runs, reqID, sample)
             for run in updated_runs:
@@ -273,3 +262,4 @@ if __name__ == '__main__':
         if args.startswith("TIME="):
             time = args[5:]
             link_by_time(time)
+            
