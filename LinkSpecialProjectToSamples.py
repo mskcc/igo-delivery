@@ -8,6 +8,9 @@ import subprocess
 import time
 import sys
 import setaccess
+from splunk_logging import setup_logging, flush_and_shutdown
+
+logger = setup_logging("LinkSpecialProjectToSamples")
 
 NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
 FASTQ_ROOT = "/igo/delivery/FASTQ/%s/Project_5200_G/%s" # (runID, Sample)
@@ -17,7 +20,7 @@ NANOPORE_DELIVERY = "/igo/delivery/nanopore/"
 SDC=False
 
 if socket.gethostname().startswith("isvigoacl01"):
-    print("Setting default paths for SDC")
+    logger.info("Setting default paths for SDC")
     SDC = True
     FASTQ_ROOT = "/ifs/datadelivery/igo_core/FASTQ/%s/Project_%s/%s" # (runID, requestID, Sample)
     DELIVERY_ROOT = "/ifs/datadelivery/igo_core/share/%s/Project_%s/%s" # (labName, requestID, trimmedRun)
@@ -55,7 +58,7 @@ class NGS_Stats:
 
 def trimRunID(runID):
     trimmedRun = re.match("([A-Za-z0-9]+_[0-9]+).*", runID).groups()[0]
-    print("Trimmed Run: {}".format(trimmedRun))
+    logger.info("Trimmed Run: %s", trimmedRun)
     return trimmedRun
 
 # given reqID, sample and list of runs, if trimmedRun are same, keep only latest runID
@@ -95,7 +98,7 @@ def link_by_request(reqID):
     labName = stats.labName
     request_name = stats.requestName # ie PEDPEG, SingleCell, etc.
     isDLP = stats.isDLP
-    print("RequestName: " + request_name)
+    logger.info("RequestName: %s", request_name)
 
     # check if lab folder exist, if not create one
     labDir = DELIVERY + "share/%s" % (labName)
@@ -110,22 +113,22 @@ def link_by_request(reqID):
     mask = 0o007
     # Set the current umask value and get the previous umask value
     umask = os.umask(mask)
-    print("Current umask:", mask)
-    print("Previous umask:", umask)
+    logger.info("Current umask: %s", mask)
+    logger.info("Previous umask: %s", umask)
 
     if not os.path.exists(projDir):
         cmd = "mkdir " + projDir
         subprocess.run(cmd, shell=True)
 
     if SDC: # replace all paths /igo/delivery/FASTQ with /ifs/datadelivery/igo_core/FASTQ
-        print("Replacing all paths for SDC")
+        logger.info("Replacing all paths for SDC")
         stats.fastq_list = [s.replace("/igo/delivery/FASTQ", "/ifs/datadelivery/igo_core/FASTQ") for s in stats.fastq_list]
 
     madeDir = []
     # create symbol links for each sample
     # if it is DLP only create link for the run not each sample
     if isDLP :
-        print("Linking DLP run")
+        logger.info("Linking DLP run")
         # get fastq file folder path instead of each fastq
         fastq_directories = set()
         for fastq in stats.fastq_list:
@@ -136,7 +139,7 @@ def link_by_request(reqID):
             dlink = projDir + "/" + fastq_dir.split('/')[-2]
             slink = fastq_dir
             cmd = "ln -sf {} {}".format(slink, dlink)
-            print(cmd)
+            logger.info(cmd)
             subprocess.run(cmd, shell=True)
     # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
     elif request_name == "Nanopore":
@@ -150,7 +153,7 @@ def link_by_request(reqID):
                 slink = parent_dir + project_dir
                 dlink = projDir
                 cmd = "ln -sf {} {}".format(slink, dlink)
-                print(cmd)
+                logger.info(cmd)
                 subprocess.run(cmd, shell=True)
     else:
         for sample, runs in stats.samples.items():
@@ -160,17 +163,17 @@ def link_by_request(reqID):
                 # check if lab/project/run folder exist, if not create one
                 if not os.path.exists(dlink) and dlink not in madeDir:
                     cmd = "mkdir " + dlink
-                    print (cmd)
+                    logger.info(cmd)
                     madeDir.append(dlink)
                     subprocess.run(cmd, shell=True)
                 slink = FASTQ_ROOT % (run, sample)
                 # check if folder exists before create link for cases that project contains old samples eg: 08822
                 if os.path.exists(slink):
                     cmd = "ln -sf {} {}".format(slink, dlink)
-                    print (cmd)
+                    logger.info(cmd)
                     subprocess.run(cmd, shell=True)
                 else:
-                    print("{} not exits".format(slink))
+                    logger.warning("%s does not exist", slink)
 
     setaccess.set_request_acls(reqID, "")
 
@@ -191,12 +194,12 @@ def get_recent_delivery(time):
         return response.json()
 
     except HTTPError as http_err:
-        print(f'HTTP error occurred: {http_err}')
+        logger.error("HTTP error occurred: %s", http_err)
 
 def link_by_time(time):
     deliver_list_orig = get_recent_delivery(time)
     if deliver_list_orig is None:
-        print("check input")
+        logger.error("No delivery data returned -- check input")
         return
     else:
         toDeliver = []
@@ -205,11 +208,11 @@ def link_by_time(time):
                 continue
             toDeliver.append(possibleDelivered['requestId'])
         if len(toDeliver) == 0:
-            print("No projects need to deliver during last {} mins".format(time))
+            logger.info("No projects need to deliver during last %s mins", time)
         else:
             for req in toDeliver:
                 link_by_request(req)
-            print("{} projects are delivered".format(len(toDeliver)))
+            logger.info("%d projects are delivered", len(toDeliver))
 
 if __name__ == '__main__':
     if (len(sys.argv) != 2):
@@ -223,3 +226,5 @@ if __name__ == '__main__':
         if args.startswith("TIME="):
             time = args[5:]
             link_by_time(time)
+
+    flush_and_shutdown()
