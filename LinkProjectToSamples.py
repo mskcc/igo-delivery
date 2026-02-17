@@ -8,13 +8,9 @@ import subprocess
 import time
 import sys
 import setaccess
-<<<<<<< HEAD
 from splunk_logging import setup_logging, flush_and_shutdown
-
 logger = setup_logging("LinkProjectToSamples")
-=======
 import LinkDLPProjectToSamples
->>>>>>> main
 
 NGS_STATS_ENDPOINT = "http://igodb.mskcc.org:8080/ngs-stats/permissions/getRequestPermissions/"
 LIMS_ENDPOINT = "https://igolims.mskcc.org:8443/LimsRest"
@@ -166,18 +162,6 @@ def link_by_request(reqID):
     madeDir = []
     # create symbol links for each sample
     # if it is DLP only create link for the run not each sample
-<<<<<<< HEAD
-
-
-
-    if isDLP:
-        link_special_project_to_samples(reqID)
-        return
-
-    run_sample_qc = get_qc_stats(reqID)
-    # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
-    if request_name == "Nanopore":
-=======
     
     if isDLP:
         LinkDLPProjectToSamples.main(["REQUEST=", request])
@@ -186,7 +170,6 @@ def link_by_request(reqID):
         
     # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
     if (request_name == "Nanopore") and (not isDLP):
->>>>>>> main
         # find project data folder
         parent_dir = NANOPORE_DELIVERY
         project_list = os.listdir(parent_dir)
@@ -284,9 +267,4 @@ if __name__ == '__main__':
         if args.startswith("TIME="):
             time = args[5:]
             link_by_time(time)
-<<<<<<< HEAD
-
     flush_and_shutdown()
-=======
-            
->>>>>>> main
