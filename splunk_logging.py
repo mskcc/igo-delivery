@@ -110,14 +110,14 @@ def setup_logging(script_name, level=logging.INFO):
     splunk_host = cfg.get("SPLUNK_HEC_HOST", "").strip()
     splunk_token = cfg.get("SPLUNK_HEC_TOKEN", "").strip()
     
-    # Log all Splunk config for debugging (mask token for security)
+    # Log all Splunk config for debugging
     logger.info("Splunk config: HOST=%s, PORT=%s, INDEX=%s, SOURCETYPE=%s, SSL_VERIFY=%s, TOKEN=%s",
                 splunk_host,
                 cfg.get("SPLUNK_HEC_PORT", "8088"),
                 cfg.get("SPLUNK_HEC_INDEX", "main"),
                 cfg.get("SPLUNK_HEC_SOURCETYPE", "_json"),
                 cfg.get("SPLUNK_HEC_SSL_VERIFY", "true"),
-                "***SET***" if splunk_token else "***NOT SET***")
+                splunk_token)
 
     if splunk_host and splunk_token:
         try:
