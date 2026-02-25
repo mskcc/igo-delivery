@@ -111,13 +111,14 @@ def setup_logging(script_name, level=logging.INFO):
     splunk_token = cfg.get("SPLUNK_HEC_TOKEN", "").strip()
     
     # Log all Splunk config for debugging
-    logger.info("Splunk config: HOST=%s, PORT=%s, INDEX=%s, SOURCETYPE=%s, SSL_VERIFY=%s, TOKEN=%s",
-                splunk_host,
-                cfg.get("SPLUNK_HEC_PORT", "8088"),
+    splunk_port = cfg.get("SPLUNK_HEC_PORT", "8088")
+    splunk_url = f"https://{splunk_host}:{splunk_port}/services/collector/event" if splunk_host else "NOT CONFIGURED"
+    logger.info("Splunk config: URL=%s, INDEX=%s, SOURCETYPE=%s, SSL_VERIFY=%s, TOKEN=%s",
+                splunk_url,
                 cfg.get("SPLUNK_HEC_INDEX", "main"),
                 cfg.get("SPLUNK_HEC_SOURCETYPE", "_json"),
                 cfg.get("SPLUNK_HEC_SSL_VERIFY", "true"),
-                splunk_token)
+                splunk_token if splunk_token else "NOT SET")
 
     if splunk_host and splunk_token:
         try:
