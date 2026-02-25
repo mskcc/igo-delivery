@@ -5,6 +5,9 @@ import sys
 import smtplib
 from email.mime.text import MIMEText
 from DeliveryConstants import NO_PM, MSKCC_ADDRESS, DEFAULT_ADDRESS, SKI_SENDER_ADDRESS
+from splunk_logging import setup_logging
+
+logger = setup_logging("DeliveryHelpers")
 
 
 class SampleDescription:
@@ -14,7 +17,7 @@ class SampleDescription:
         self.passing_runs = []
         self.passing_dates = {}
         if "basicQcs" not in queryDict:
-            print(queryDict)
+            logger.warning("No basicQcs in queryDict: %s", queryDict)
             queryDict["basicQcs"] = []
         for qcStatus in queryDict["basicQcs"]:
             if qcStatus["qcStatus"] != "Under-Review" and not qcStatus["qcStatus"].startswith("Failed"):
@@ -66,7 +69,7 @@ class DeliveryDescription:
             userName = MSKCC_ADDRESS
             if institute == "ski.mskcc.org" and self.piEmail in nicknameMapping:
                 userName = nicknameMapping[self.piEmail]
-                print("NEW USERNAME:" + userName)
+                logger.info("NEW USERNAME: %s", userName)
         self.userName = userName
 
 
@@ -76,10 +79,10 @@ class DeliveryInfo:
         self.deliveryDescriptions = []
     
     def recentDeliveries(self, base64string, minutes):
-        print(datetime.datetime.now())
+        logger.info("Current time: %s", datetime.datetime.now())
         hdr = {'Authorization': "Basic %s" % base64string.decode('utf-8')}
         url = self.server + "/getRecentDeliveries?time="+str(minutes)+"&units=m"
-        print("Getting recent deliveries: " + url)
+        logger.info("Getting recent deliveries: %s", url)
         req = urllib.request.Request(url, headers=hdr)
         response = urllib.request.urlopen(req)
         deliveries = json.loads(response.read())
@@ -97,7 +100,7 @@ class DeliveryInfo:
 
     def getEmailDetails(self, proj, base64string):
         requestQuery = self.server + "/getProjectDetailed?project=" + proj
-        print("Getting Project Details: " + requestQuery)
+        logger.info("Getting Project Details: %s", requestQuery)
         detReq = urllib.request.Request(requestQuery)
         detReq.add_header("Authorization", "Basic %s" % base64string.decode('utf-8'))
         detReq.add_header("Content-Type", "application/json")
@@ -155,12 +158,12 @@ class ProdEmail():
 
 class TestEmail():
     def notify(self, runType, delivered, email, mainContacts, additionalContacts):
-        print("-----------")
-        print("Subject: " + email["subject"])
-        print("From", SKI_SENDER_ADDRESS)
-        print("To", ",".join(mainContacts))
-        print("Cc", ",".join(additionalContacts))
-        print(email["content"])
+        logger.info("-----------")
+        logger.info("Subject: %s", email["subject"])
+        logger.info("From: %s", SKI_SENDER_ADDRESS)
+        logger.info("To: %s", ",".join(mainContacts))
+        logger.info("Cc: %s", ",".join(additionalContacts))
+        logger.info("Content: %s", email["content"])
 
     def alert(self, delivered):
-        print(delivered)
+        logger.error("Alert for delivery: %s", delivered)

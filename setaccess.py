@@ -5,6 +5,9 @@ import socket
 from pathlib import Path
 import requests
 import glob
+from splunk_logging import setup_logging, flush_and_shutdown
+
+logger = setup_logging("setaccess")
 
 # Group accounts have different names in the SDC and LDC datacenters LDC name(key):SDC name(value)
 # not a group but also have different name: shahbot -> SVC_shahs3_bot
@@ -36,7 +39,7 @@ NANOPORE_DELIVERY_PATH_SDC = "/ifs/datadelivery/igo_core/nanopore/"
 ACL_DOMAIN_SDC = "@mskcc.org"
 
 if socket.gethostname().startswith("isvigoacl01"):
-    print("Setting default paths for SDC - " + LAB_SHARE_PATH_SDC)
+    logger.info("Setting default paths for SDC - %s", LAB_SHARE_PATH_SDC)
     LAB_SHARE_PATH = LAB_SHARE_PATH_SDC
     ACL_DOMAIN = ACL_DOMAIN_SDC
     DOMAIN = "SDC"
@@ -44,21 +47,21 @@ if socket.gethostname().startswith("isvigoacl01"):
 
 # lab_name is optional
 def set_request_acls(request, lab_name):
-    print("Setting ACLs for request {} ".format(request))
+    logger.info("Setting ACLs for request %s", request)
 
     request_perms = get_request_metadata(request, "none")
     if request_perms is None:
         # Maybe the request is older than the LIMS, just give access to all lab members based on the folder such as 'pamere'
         if lab_name == "":
-            print("Unknown request ID {}, quitting.".format(request))
+            logger.warning("Unknown request ID %s, quitting.", request)
             return
         else:
-            print("No known LIMS data, granting permissions based on the lab folder: " + lab_name)
+            logger.info("No known LIMS data, granting permissions based on the lab folder: %s", lab_name)
             request_perms = get_request_metadata(request, lab_name)
             temp_acl_file = request_perms.write_acl_temp_file()
             request_perms.grant_share_acls(temp_acl_file, True)
             request_perms.grant_fastq_acls(temp_acl_file)
-            print("---")
+            logger.info("---")
             return
     temp_acl_file = request_perms.write_acl_temp_file()
     request_perms.grant_fastq_acls(temp_acl_file)
@@ -66,12 +69,12 @@ def set_request_acls(request, lab_name):
         request_perms.grant_share_acls(temp_acl_file, True)
     else:
         request_perms.grant_share_acls(temp_acl_file, False)
-    print("---")
+    logger.info("---")
 
 
 def get_request_metadata(request, lab_name):
     url = NGS_STATS_ENDPOINT + request + "/" + lab_name
-    print("Sending request {}".format(url))
+    logger.info("Sending request %s", url)
     r = requests.get(url).json()
     # 'status': 500, 'error': 'Internal Server Error',
     if 'status' in r.keys() and r['status'] == 500:
@@ -85,7 +88,7 @@ def get_request_metadata(request, lab_name):
 
 def get_lab_metadata(lab_name, request):
     url = NGS_STATS_ENDPOINT_LAB + lab_name
-    print("Sending request {}".format(url))
+    logger.info("Sending request %s", url)
     r = requests.get(url).json()
     # 'status': 500, 'error': 'Internal Server Error',
     if 'status' in r.keys() and r['status'] == 500:
@@ -109,19 +112,19 @@ class RequestPermissions:
         self.isNeoAg = isNeoAg
 
         if self.isDLP:
-            print("DLP requests must give access to {} ".format(DLP_REQUIRED_ACCESS_LIST))
+            logger.info("DLP requests must give access to %s", DLP_REQUIRED_ACCESS_LIST)
             self.data_access_emails.extend(DLP_REQUIRED_ACCESS_LIST)
         if "TCRSeq" in self.request_name:
-            print("TCRSeq requests must give access to {} ".format(TCRSEQ_REQUIRED_ACCESS_LIST))
+            logger.info("TCRSeq requests must give access to %s", TCRSEQ_REQUIRED_ACCESS_LIST)
             self.data_access_emails.extend(TCRSEQ_REQUIRED_ACCESS_LIST)
         if self.isNeoAg:
-            print("NeoAg requests must give access to {} ".format(NEOAG_REQUIRED_ACCESS_LIST))
+            logger.info("NeoAg requests must give access to %s", NEOAG_REQUIRED_ACCESS_LIST)
             self.data_access_emails.extend(NEOAG_REQUIRED_ACCESS_LIST)
 
     # Grants ACLs to all fastq.gz files in a project, parent folders for the fastqs and SampleSheet.csv
     # For DLP runs ending in 'DLP' DIANA_0294_AHTGLJDSXY_DLP, grants read access to the 'Reports' and 'Stats' folders
     def grant_fastq_acls(self, temp_file_path):
-        print("Setting ACLS for all {} fastqs in the request.".format(len(self.fastqs)))
+        logger.info("Setting ACLS for all %d fastqs in the request.", len(self.fastqs))
         # nfs4_setfacl -S "/igo/delivery/FASTQ/acl_entries.txt" /igo/delivery/share/bergerm1/Project_06302_AM
         command_prefix = "nfs4_setfacl -S \"{}\"".format(temp_file_path)
         sample_folders = set()
@@ -130,26 +133,26 @@ class RequestPermissions:
                 fastq = fastq.replace("/igo/delivery/FASTQ", LAB_SHARE_FASTQ_PATH_SDC)
             fastq_path = Path(fastq)
             if not fastq_path.exists():
-                print("{} fastq.gz does not exist. Moving on.".format(fastq))
+                logger.warning("%s fastq.gz does not exist. Moving on.", fastq)
                 continue
 
             # /igo/delivery/share/labname/Project_12345/MICHELLE_0682/Sample_mysample
             sample_folders.add(fastq_path.parent)
 
             set_acl_command = "{} {}".format(command_prefix, fastq)
-            print(set_acl_command)
+            logger.info(set_acl_command)
             result = os.system(set_acl_command)
             if result != 0:
-                print("ERROR SETTING ACL - ".format(set_acl_command))
+                logger.error("ERROR SETTING ACL - %s", set_acl_command)
         project_folders = set()
         for sample_folder in sample_folders:
             set_acl_command = "{} {}".format(command_prefix, sample_folder)
             parent_path = Path(sample_folder).parent
             project_folders.add(parent_path)
-            print(set_acl_command)
+            logger.info(set_acl_command)
             result = os.system(set_acl_command)
             if result != 0:
-                print("ERROR SETTING ACL at sample level - ".format(set_acl_command))
+                logger.error("ERROR SETTING ACL at sample level - %s", set_acl_command)
             sample_sheet = sample_folder.joinpath(Path("SampleSheet.csv"))
             if sample_sheet.exists():  # if SampleSheet.csv exists make it readable too
                 set_acl_command = "{} {}".format(command_prefix, sample_sheet)
@@ -157,11 +160,11 @@ class RequestPermissions:
             # check if *.yaml file exists for DLP projects and grant same access to it
             if glob.glob("{}/*.yaml".format(sample_folder)): # if os.system("test -f {}/*.yaml".format(sample_folder)) == 0:
                 set_acl_command_yaml = "{} {}/*.yaml".format(command_prefix, sample_folder)
-                print(set_acl_command_yaml)
+                logger.info(set_acl_command_yaml)
                 os.system(set_acl_command_yaml)
             if glob.glob("{}/*.fld".format(sample_folder)): # if os.system("test -f {}/*.fld".format(sample_folder)) == 0:
                 set_acl_command_fld = "{} {}/*.fld".format(command_prefix, sample_folder)
-                print(set_acl_command_fld)
+                logger.info(set_acl_command_fld)
                 os.system(set_acl_command_fld)
 
             run_folder = str(sample_folder.parent)
@@ -170,40 +173,40 @@ class RequestPermissions:
                 reports_status = os.stat(reports_folder)
                 # mask 4 means readable by all
                 if str(oct(reports_status.st_mode)[-1:]) == "4":
-                    print("Reports folder {} is already readable by all".format(reports_folder))
+                    logger.info("Reports folder %s is already readable by all", reports_folder)
                 else:
                     set_acl_reports = "nfs4_setfacl -R -S \"{}\" {}".format(temp_file_path, reports_folder)
-                    print(set_acl_reports)
+                    logger.info(set_acl_reports)
                     result = os.system(set_acl_reports)
         # /igo/delivery/FASTQ/MICHELLE_0284_BHVKK3DMXX/Project_09641_AS
         for project_folder in project_folders:
             set_acl_command = "{} {}".format(command_prefix, project_folder)
-            print(set_acl_command)
+            logger.info(set_acl_command)
             result = os.system(set_acl_command)
             if result != 0:
-                print("ERROR SETTING ACL at project level - ".format(set_acl_command))
+                logger.error("ERROR SETTING ACL at project level - %s", set_acl_command)
 
     def grant_share_acls(self, temp_file_path, recursively):
         if self.request_share_exists():
-            print("Setting ACLS for all request share folders below " + self.request_share_path)
+            logger.info("Setting ACLS for all request share folders below %s", self.request_share_path)
             # nfs4_setfacl -R(recursive)
             # nfs4_setfacl -R -S "/igo/archive/FASTQ/acl_entries.txt" /igo/delivery/share/lab/request
             set_acl_command = "nfs4_setfacl -R -S \"{}\" {}".format(temp_file_path, self.request_share_path)
             if recursively:
                 set_acl_command = "nfs4_setfacl -R -L -S \"{}\" {}".format(temp_file_path, self.request_share_path)
-            print(set_acl_command)
+            logger.info(set_acl_command)
             result = os.system(set_acl_command)
             if result != 0:
-                print("ERROR SETTING ACL - ".format(set_acl_command))
+                logger.error("ERROR SETTING ACL - %s", set_acl_command)
             #verify lab directory is readable by all since it has no ACLs set
             parent = os.path.dirname(self.request_share_path)
             mask = str(oct(os.stat(parent).st_mode)[-3:])
             if mask != "775":
                 command = "chmod +rx {}".format(parent)
-                print(command)
+                logger.info(command)
                 os.system(command)
         else:
-            print("{} share does not exist ".format(self.request_share_path))
+            logger.warning("%s share does not exist", self.request_share_path)
 
     # Write the file with the ACLs to a temp location
     def write_acl_temp_file(self):  # just leave the temp files around for possible reference later
@@ -213,7 +216,7 @@ class RequestPermissions:
         temp_file.close()
         if self.request_share_exists():
             acl_file_copy_path = self.request_share_path + "/acl_permissions.txt"
-            print("Copying ACL permissions file to {}".format(acl_file_copy_path))
+            logger.info("Copying ACL permissions file to %s", acl_file_copy_path)
             shutil.copy(temp_file_path, acl_file_copy_path)
 
         return temp_file_path
@@ -227,7 +230,7 @@ class RequestPermissions:
 
         # Already filtered via ngs_stats code -
         # email.endsWith("mskcc.org") & & !email.contains("zzPDL")) then dataAccessIDs.add(email.split("@")[0])
-        print("Adding data access emails {}".format(self.data_access_emails))
+        logger.info("Adding data access emails %s", self.data_access_emails)
         for email_id in self.data_access_emails:
             email_id = str(email_id).strip()
             if email_id != "skicmopm":
@@ -255,7 +258,7 @@ class RequestPermissions:
                 group_name = SDC_group_name_map[group_name]
             acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncy\n"
 
-        print("Checking if each account exists for all user IDs before trying to add the ACL with the id command")
+        logger.info("Checking if each account exists for all user IDs before trying to add the ACL with the id command")
         for user in users_set:
             if DOMAIN == "SDC" and user == "shahbot":
                 user = 'SVC_shahs3_bot'
@@ -266,7 +269,7 @@ class RequestPermissions:
             if user_exists_result == 0:
                 acls += "A::" + user + ACL_DOMAIN + ":rxtncy\n"
             else:
-                print("User {} does not exist, they should be removed from the DB.".format(user))
+                logger.warning("User %s does not exist, they should be removed from the DB.", user)
 
         owner_group_everyone = "A::OWNER@:rwaDxtTnNcCoy\nA::GROUP@:rxtncCy\nA::EVERYONE@:tncy\n"
         return acls + owner_group_everyone
@@ -291,7 +294,7 @@ def main():
 
     if args.startswith("LABSHAREDIR="):
         lab_folder = args[12:]
-        print("Granting access permissions for {}".format(lab_folder))
+        logger.info("Granting access permissions for %s", lab_folder)
         lab_name = os.path.basename(lab_folder)
         project_folders_list = [f.path for f in os.scandir(lab_folder) if f.is_dir()]
         for project_folder in project_folders_list:
@@ -306,13 +309,15 @@ def main():
     if args.startswith("ARCHIVEDWITHINLAST="):
         minutes = args[19:]
         if int(minutes) > 70000:
-            print("This request would take too long, exiting.")
+            logger.error("This request would take too long, exiting.")
             return
         getArchivedProjectsURL = NGS_STATS_ENDPOINT_RECENT + minutes
-        print("Sending request {}".format(getArchivedProjectsURL))
+        logger.info("Sending request %s", getArchivedProjectsURL)
         archivedProjects = requests.get(getArchivedProjectsURL).json()
         for project in archivedProjects:
             set_request_acls(project, '')
+
+    flush_and_shutdown()
 
 
 if __name__ == '__main__':

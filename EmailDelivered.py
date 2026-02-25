@@ -10,7 +10,9 @@ import setaccess
 import LinkProjectToSamples
 import DeliveryConstants
 from DeliveryHelpers import *
-import setaccess
+from splunk_logging import setup_logging, flush_and_shutdown
+
+logger = setup_logging("EmailDelivered")
 
 RNA_recipe_type = ["RNA_SMARTer-Cells", "RNA_SMARTer-RNA", "RNA_Capture", "User_RNA", "RNA_PolyA", "RNA_Ribodeplete"]
 
@@ -146,7 +148,7 @@ def main(mode, minutes):
         notifier = ProdEmail()
     minutes = minutes
 
-    print("Email logic running in mode: {}, searching for deliveries for the past {} minutes".format(mode, minutes))
+    logger.info("Email logic running in mode: %s, searching for deliveries for the past %s minutes", mode, minutes)
     
     # get recent delivery information from LIMS
     with (open("ConnectLimsRest.txt")) as connectInfo:
@@ -168,13 +170,13 @@ def main(mode, minutes):
                 sampleName = possibleSample.fullId()
                 if len(possibleSample.passing_runs) > 0 and sampleName not in samples:
                     samples.append(sampleName)
-            print("Project: " + delivered.requestId)
+            logger.info("Project: %s", delivered.requestId)
             
             # PI and Investigator always start out as recipients
             # TODO remove duplciate from recipients when pi and investigator is same person
             recipients = list(filter(lambda x: x != "", [delivered.piEmail, delivered.investigatorEmail]))
             additionalRecipients = list(filter(lambda mail: mail not in recipients, delivered.dataAccessEmails.lower().split(",")))
-            print("recipients {}, additional recipients {}".format(recipients, additionalRecipients))
+            logger.info("recipients %s, additional recipients %s", recipients, additionalRecipients)
             recipients = recipients + additionalRecipients
         
             email = determineDataAccessContent(delivered)
@@ -200,8 +202,7 @@ def main(mode, minutes):
 
         except:
             e = sys.exc_info()[0]
-            print(e)
-            traceback.print_exc(file=sys.stdout)
+            logger.error("Error processing delivery: %s", e, exc_info=True)
             try:
                 notifier.alert(delivered)
             except NameError:
@@ -221,3 +222,4 @@ if __name__ == '__main__':
         minutes = sys.argv[2]
 
     main(mode, minutes)
+    flush_and_shutdown()
