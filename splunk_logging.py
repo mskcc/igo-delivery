@@ -151,28 +151,18 @@ def setup_logging(script_name, level=logging.INFO):
     return logger
 
 
-def flush_and_shutdown(timeout_seconds=15):
+def flush_and_shutdown():
     """
     Flush all queued Splunk events and shut down logging.
 
     Call this at the very end of a script's execution to ensure
-    no events are lost. Times out after timeout_seconds to prevent hanging.
+    no events are lost.
     """
-    import threading
-    
     if _splunk_enabled:
-        def _flush():
-            try:
-                from splunk_handler import force_flush
-                force_flush()
-            except Exception as e:
-                print(f"Splunk flush error (ignored): {e}")
-        
-        flush_thread = threading.Thread(target=_flush, daemon=True)
-        flush_thread.start()
-        flush_thread.join(timeout=timeout_seconds)
-        
-        if flush_thread.is_alive():
-            print(f"Splunk flush timed out after {timeout_seconds}s - continuing shutdown")
+        try:
+            from splunk_handler import force_flush
+            force_flush()
+        except Exception as e:
+            print(f"Splunk flush error (ignored): {e}")
     
     logging.shutdown()
