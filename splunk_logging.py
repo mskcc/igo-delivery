@@ -32,16 +32,44 @@ _splunk_enabled = False # Whether SplunkHandler was attached
 
 
 def _load_config():
-    """Load configuration from the .env file located next to this module."""
+    """
+    Load configuration from .env file, falling back to system environment variables.
+    
+    Priority:
+    1. .env file (if exists)
+    2. .env.deploy file (if exists, for committed config)
+    3. System environment variables (for secrets like SPLUNK_HEC_TOKEN)
+    """
     global _config
     if _config is not None:
         return _config
 
-    env_path = Path(__file__).resolve().parent / ".env"
+    base_path = Path(__file__).resolve().parent
+    
+    # Try .env first, then .env.deploy
+    env_path = base_path / ".env"
+    if not env_path.exists():
+        env_path = base_path / ".env.deploy"
+    
     if env_path.exists():
         _config = dotenv_values(env_path)
     else:
         _config = {}
+    
+    # Fall back to system environment variables for any missing/empty values
+    env_keys = [
+        "SPLUNK_HEC_HOST", "SPLUNK_HEC_TOKEN", "SPLUNK_HEC_PORT",
+        "SPLUNK_HEC_INDEX", "SPLUNK_HEC_SOURCETYPE", "SPLUNK_HEC_SSL_VERIFY",
+        "SPLUNK_FLUSH_INTERVAL", "SPLUNK_QUEUE_SIZE"
+    ]
+    for key in env_keys:
+        file_value = _config.get(key, "").strip()
+        # Check if value is empty or is a variable reference like ${SPLUNK_HEC_TOKEN}
+        if not file_value or file_value.startswith("${"):
+            env_value = os.environ.get(key, "")
+            if env_value:
+                _config[key] = env_value
+    
     return _config
 
 
