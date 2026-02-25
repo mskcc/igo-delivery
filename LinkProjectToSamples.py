@@ -164,7 +164,7 @@ def link_by_request(reqID):
     # if it is DLP only create link for the run not each sample
     
     if isDLP:
-        LinkDLPProjectToSamples.main(["REQUEST=", request])
+        LinkDLPProjectToSamples.main(["REQUEST=", reqID])
     else:
         run_sample_qc = get_qc_stats(reqID)
         
