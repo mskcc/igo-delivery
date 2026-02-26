@@ -1,9 +1,16 @@
-#!/bin/sh
+#!/bin/bash
 # Adapted from ~pepper/bin scripts run from 2011-March 2019
 # Copy runs from gclisi:/ifs/input/ to solarc:/ifs/archive/.
 # A run should be copied when the ready file exists but no ARCHIVED file exists
 # The last file written by each sequencer is not in Illumina documentation, they
 # communicate that information verbally or by email
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SPLUNK_LOG="$SCRIPT_DIR/splunk_log.py"
+SCRIPT_NAME="instrument-rsync"
+
+log_info()  { python3 "$SPLUNK_LOG" "$SCRIPT_NAME" INFO "$1" 2>/dev/null || echo "[INFO] $1"; }
+log_error() { python3 "$SPLUNK_LOG" "$SCRIPT_NAME" ERROR "$1" 2>/dev/null || echo "[ERROR] $1"; }
 
 # either diana, jax, johnsawyers, kim, liz, michelle, momo, pitt, scott, toms, vic, ayyan
 INSTRUMENT=$1
@@ -43,6 +50,7 @@ fi
 touch $LOCK
 echo
 echo "Starting  $0. `date`"
+log_info "Starting instrument-rsync for $INSTRUMENT"
 
 cd $SOURCE
 RUNS=`ls -d */` 
@@ -55,18 +63,22 @@ for RUN in $RUNS  # ~30s when no work to do
     curl "http://delphi.mskcc.org:8080/ngs-stats/rundone/sequencerstartstop/$INSTRUMENT/$RUN/$READYFILE/igoStorage" &
     # This is the main copy, it may run for hours
     echo "Archiving $SOURCE/$RUN `date`"
+    log_info "Starting rsync for $INSTRUMENT run $RUN"
     $RSYNC $SOURCE/$RUN $DEST/$RUN
     if [ $? != 0 ]
      then
       echo "$0: rsync #1 error on $RUN"
       echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN"
       echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #1 error on $RUN" skigodata@mskcc.org
+      log_error "rsync failed for $INSTRUMENT run $RUN"
     fi # [ $? != 0 ]
 
     touch $ARCHFILEDIR$RUNNAME
     echo "Archived $SOURCE/$RUN to $DEST/$RUN `date`"
+    log_info "Successfully archived $INSTRUMENT run $RUN"
   fi # [ -e $RUN$READYFILE -a ! -e $RUN$ARCHFILE ]
  done
 
 rm $LOCK
 echo "Completed $0. `date`"
+log_info "Completed instrument-rsync for $INSTRUMENT"
