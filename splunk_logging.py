@@ -34,7 +34,7 @@ import threading
 # ---------------------------------------------------------------------------
 _config = None          # Loaded .env values (dict)
 _splunk_enabled = False # Whether SplunkHandler was attached
-_splunk_handler = None  # Reference to our custom handler
+_splunk_handlers = []   # List of all custom handlers (one per logger)
 
 
 class JSONSplunkHandler(logging.Handler):
@@ -205,7 +205,6 @@ def setup_logging(script_name, level=logging.INFO):
                 splunk_token if splunk_token else "NOT SET")
 
     if splunk_host and splunk_token:
-        global _splunk_handler
         try:
             splunk = JSONSplunkHandler(
                 host=splunk_host,
@@ -220,7 +219,7 @@ def setup_logging(script_name, level=logging.INFO):
             splunk.setLevel(level)
             splunk.setFormatter(formatter)
             logger.addHandler(splunk)
-            _splunk_handler = splunk
+            _splunk_handlers.append(splunk)
             _splunk_enabled = True
             logger.debug("JSONSplunkHandler attached (%s:%s)",
                          splunk_host, cfg.get("SPLUNK_HEC_PORT", "8088"))
@@ -239,15 +238,16 @@ def flush_and_shutdown():
     Call this at the very end of a script's execution to ensure
     no events are lost.
     """
-    print(f"flush_and_shutdown called, _splunk_enabled={_splunk_enabled}")
-    if _splunk_enabled and _splunk_handler:
-        try:
-            print("Flushing Splunk handler...")
-            _splunk_handler.flush()
-            _splunk_handler.close()
-            print("Splunk handler flushed and closed")
-        except Exception as e:
-            print(f"Splunk flush error: {e}")
+    print(f"flush_and_shutdown called, _splunk_enabled={_splunk_enabled}, handlers={len(_splunk_handlers)}")
+    if _splunk_enabled and _splunk_handlers:
+        for i, handler in enumerate(_splunk_handlers):
+            try:
+                print(f"Flushing Splunk handler {i+1}/{len(_splunk_handlers)}...")
+                handler.flush()
+                handler.close()
+                print(f"Splunk handler {i+1} flushed and closed")
+            except Exception as e:
+                print(f"Splunk flush error for handler {i+1}: {e}")
     
     logging.shutdown()
     print("logging.shutdown() completed")
