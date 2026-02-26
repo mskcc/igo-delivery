@@ -20,6 +20,7 @@ RSYNC="rsync -a --no-links --exclude=*.cif --exclude=*.bcl --exclude=*.bcl.gz --
 if [ -f $LOCK ]
  then
   echo "Per $LOCK, $0 is already running. `date`"
+  log_info "Script already running (lock file exists), exiting"
   exit 2
 fi
 
