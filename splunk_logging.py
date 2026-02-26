@@ -59,6 +59,7 @@ class JSONSplunkHandler(logging.Handler):
         })
         self._queue = queue.Queue()
         self._shutdown = False
+        self._sending = False
         self._worker = threading.Thread(target=self._send_worker, daemon=True)
         self._worker.start()
     
@@ -86,11 +87,15 @@ class JSONSplunkHandler(logging.Handler):
         while not self._shutdown:
             try:
                 payload = self._queue.get(timeout=1)
+                self._sending = True
                 self._send(payload)
+                self._sending = False
+                self._queue.task_done()
             except queue.Empty:
                 continue
             except Exception as e:
                 print(f"[JSONSplunkHandler] Worker error: {e}")
+                self._sending = False
     
     def _send(self, payload):
         try:
@@ -105,13 +110,20 @@ class JSONSplunkHandler(logging.Handler):
             print(f"[JSONSplunkHandler] Send error: {e}")
     
     def flush(self):
-        # Wait for queue to empty
-        while not self._queue.empty():
-            time_module.sleep(0.1)
+        # Wait for queue to fully process (not just empty)
+        try:
+            self._queue.join()
+        except Exception:
+            pass
+        # Also wait if a send is in progress
+        while self._sending:
+            time_module.sleep(0.05)
     
     def close(self):
-        self._shutdown = True
         self.flush()
+        self._shutdown = True
+        if self._worker.is_alive():
+            self._worker.join(timeout=2)
         super().close()
 
 
