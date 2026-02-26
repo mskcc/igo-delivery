@@ -136,6 +136,7 @@ def setup_logging(script_name, level=logging.INFO):
                 queue_size=int(cfg.get("SPLUNK_QUEUE_SIZE", "5000")),
                 timeout=10,  # 10 second connection timeout
                 record_format=True,  # Send as JSON object: {"event": {"message": "..."}, ...}
+                debug=True,  # Log payloads to console
             )
             splunk.setLevel(level)
             logger.addHandler(splunk)
