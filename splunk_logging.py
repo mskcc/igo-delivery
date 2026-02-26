@@ -160,11 +160,15 @@ def flush_and_shutdown():
     Call this at the very end of a script's execution to ensure
     no events are lost.
     """
+    print(f"flush_and_shutdown called, _splunk_enabled={_splunk_enabled}")
     if _splunk_enabled:
         try:
             from splunk_handler import force_flush
+            print("Calling force_flush()...")
             force_flush()
+            print("force_flush() completed")
         except Exception as e:
-            print(f"Splunk flush error (ignored): {e}")
+            print(f"Splunk flush error: {e}")
     
     logging.shutdown()
+    print("logging.shutdown() completed")
