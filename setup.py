@@ -10,7 +10,7 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         "splunk_handler>=3.0.0",
-        "python-dotenv>=1.0.0",
+        "python-dotenv>=0.19.0",
         "requests",
     ],
     classifiers=[
