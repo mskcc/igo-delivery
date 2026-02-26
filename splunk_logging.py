@@ -135,6 +135,7 @@ def setup_logging(script_name, level=logging.INFO):
                 flush_interval=float(cfg.get("SPLUNK_FLUSH_INTERVAL", "5.0")),
                 queue_size=int(cfg.get("SPLUNK_QUEUE_SIZE", "5000")),
                 timeout=10,  # 10 second connection timeout
+                record_format=True,  # Send as JSON object, not string (required for _json sourcetype)
             )
             splunk.setLevel(level)
             logger.addHandler(splunk)
