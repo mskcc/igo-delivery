@@ -23,12 +23,96 @@ import os
 from pathlib import Path
 
 from dotenv import dotenv_values
+import json
+import requests
+import time as time_module
+import queue
+import threading
 
 # ---------------------------------------------------------------------------
 # Module-level state
 # ---------------------------------------------------------------------------
 _config = None          # Loaded .env values (dict)
 _splunk_enabled = False # Whether SplunkHandler was attached
+_splunk_handler = None  # Reference to our custom handler
+
+
+class JSONSplunkHandler(logging.Handler):
+    """
+    Custom Splunk HEC handler that sends events in the correct JSON format:
+    {"event": {"message": "..."}, "sourcetype": "_json", "index": "..."}
+    """
+    
+    def __init__(self, host, port, token, index, sourcetype, source, verify=True, timeout=10):
+        super().__init__()
+        self.url = f"https://{host}:{port}/services/collector/event"
+        self.token = token
+        self.index = index
+        self.sourcetype = sourcetype
+        self.source = source
+        self.verify = verify
+        self.timeout = timeout
+        self.session = requests.Session()
+        self.session.headers.update({
+            "Authorization": f"Splunk {token}",
+            "Content-Type": "application/json"
+        })
+        self._queue = queue.Queue()
+        self._shutdown = False
+        self._worker = threading.Thread(target=self._send_worker, daemon=True)
+        self._worker.start()
+    
+    def emit(self, record):
+        try:
+            payload = {
+                "event": {
+                    "message": self.format(record),
+                    "level": record.levelname,
+                    "logger": record.name,
+                    "timestamp": record.created
+                },
+                "host": getattr(record, 'hostname', None) or __import__('socket').gethostname(),
+                "index": self.index,
+                "source": self.source,
+                "sourcetype": self.sourcetype,
+                "time": record.created
+            }
+            self._queue.put(payload)
+            print(f"[JSONSplunkHandler] Queued: {json.dumps(payload)}")
+        except Exception as e:
+            print(f"[JSONSplunkHandler] Error queueing: {e}")
+    
+    def _send_worker(self):
+        while not self._shutdown:
+            try:
+                payload = self._queue.get(timeout=1)
+                self._send(payload)
+            except queue.Empty:
+                continue
+            except Exception as e:
+                print(f"[JSONSplunkHandler] Worker error: {e}")
+    
+    def _send(self, payload):
+        try:
+            response = self.session.post(
+                self.url,
+                data=json.dumps(payload),
+                verify=self.verify,
+                timeout=self.timeout
+            )
+            print(f"[JSONSplunkHandler] Response: {response.status_code} - {response.text}")
+        except Exception as e:
+            print(f"[JSONSplunkHandler] Send error: {e}")
+    
+    def flush(self):
+        # Wait for queue to empty
+        while not self._queue.empty():
+            time_module.sleep(0.1)
+    
+    def close(self):
+        self._shutdown = True
+        self.flush()
+        super().close()
 
 
 def _load_config():
@@ -121,10 +205,9 @@ def setup_logging(script_name, level=logging.INFO):
                 splunk_token if splunk_token else "NOT SET")
 
     if splunk_host and splunk_token:
+        global _splunk_handler
         try:
-            from splunk_handler import SplunkHandler
-
-            splunk = SplunkHandler(
+            splunk = JSONSplunkHandler(
                 host=splunk_host,
                 port=int(cfg.get("SPLUNK_HEC_PORT", "8088")),
                 token=splunk_token,
@@ -132,22 +215,17 @@ def setup_logging(script_name, level=logging.INFO):
                 sourcetype=cfg.get("SPLUNK_HEC_SOURCETYPE", "_json"),
                 source=script_name,
                 verify=cfg.get("SPLUNK_HEC_SSL_VERIFY", "true").lower() == "true",
-                flush_interval=float(cfg.get("SPLUNK_FLUSH_INTERVAL", "5.0")),
-                queue_size=int(cfg.get("SPLUNK_QUEUE_SIZE", "5000")),
-                timeout=10,  # 10 second connection timeout
-                record_format=True,  # Send as JSON object: {"event": {"message": "..."}, ...}
-                debug=True,  # Log payloads to console
+                timeout=10,
             )
             splunk.setLevel(level)
+            splunk.setFormatter(formatter)
             logger.addHandler(splunk)
+            _splunk_handler = splunk
             _splunk_enabled = True
-            logger.debug("Splunk HEC handler attached (%s:%s)",
+            logger.debug("JSONSplunkHandler attached (%s:%s)",
                          splunk_host, cfg.get("SPLUNK_HEC_PORT", "8088"))
-        except ImportError:
-            logger.warning(
-                "splunk_handler package not installed -- "
-                "Splunk logging disabled. Install with: pip install splunk_handler"
-            )
+        except Exception as e:
+            logger.warning("Failed to create Splunk handler: %s", e)
     else:
         logger.debug("Splunk HEC not configured in .env -- console logging only")
 
@@ -162,12 +240,12 @@ def flush_and_shutdown():
     no events are lost.
     """
     print(f"flush_and_shutdown called, _splunk_enabled={_splunk_enabled}")
-    if _splunk_enabled:
+    if _splunk_enabled and _splunk_handler:
         try:
-            from splunk_handler import force_flush
-            print("Calling force_flush()...")
-            force_flush()
-            print("force_flush() completed")
+            print("Flushing Splunk handler...")
+            _splunk_handler.flush()
+            _splunk_handler.close()
+            print("Splunk handler flushed and closed")
         except Exception as e:
             print(f"Splunk flush error: {e}")
     
