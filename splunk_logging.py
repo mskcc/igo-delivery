@@ -116,7 +116,7 @@ def setup_logging(script_name, level=logging.INFO):
     logger.info("Splunk config: URL=%s, INDEX=%s, SOURCETYPE=%s, SSL_VERIFY=%s, TOKEN=%s",
                 splunk_url,
                 cfg.get("SPLUNK_HEC_INDEX", "main"),
-                cfg.get("SPLUNK_HEC_SOURCETYPE", "_json"),
+                cfg.get("SPLUNK_HEC_SOURCETYPE", "json"),
                 cfg.get("SPLUNK_HEC_SSL_VERIFY", "true"),
                 splunk_token if splunk_token else "NOT SET")
 
@@ -135,7 +135,7 @@ def setup_logging(script_name, level=logging.INFO):
                 flush_interval=float(cfg.get("SPLUNK_FLUSH_INTERVAL", "5.0")),
                 queue_size=int(cfg.get("SPLUNK_QUEUE_SIZE", "5000")),
                 timeout=10,  # 10 second connection timeout
-                record_format=True,  # Send as JSON object, not string (required for _json sourcetype)
+                record_format=True,  # Send as JSON object: {"event": {"message": "..."}, ...}
             )
             splunk.setLevel(level)
             logger.addHandler(splunk)
