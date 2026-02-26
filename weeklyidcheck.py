@@ -4,6 +4,9 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 import socket
+from splunk_logging import setup_logging, flush_and_shutdown
+
+logger = setup_logging("weeklyidcheck")
 
 LIMS_ENDPOINT = "https://igolims.mskcc.org:8443/LimsRest"
 file1 = open('ConnectLimsRest.txt', 'r')
@@ -19,9 +22,11 @@ def get_user_list_weekly():
         response = requests.get(limsurl, auth=(username, password), verify=False)
         response.raise_for_status()
         user_list = response.json()
+        logger.info("Retrieved %d users from LIMS", len(user_list))
 
     except HTTPError as http_err:
-        print(f'HTTP error occurred: {http_err}')
+        logger.error("HTTP error occurred: %s", http_err)
+        return []
 
     return user_list
 
@@ -63,12 +68,21 @@ if __name__ == '__main__':
     cluster = "Lilac/Juno"
     if socket.gethostname().startswith("isvigoacl01"):
         cluster = "IRIS"
+    
+    logger.info("Starting weekly ID check for cluster %s", cluster)
+    
     user_list = get_user_list_weekly()
     id = parse_user_list(user_list)
     id_to_add = check_id(id)
+    
+    logger.info("IDs to add: %s", id_to_add)
     print(id_to_add)
+    
     email = {}
     email["content"] = ", ".join(id_to_add)
     email["subject"] = "id to add for cluster {}".format(cluster)
     notify(email)
+    
+    logger.info("Weekly ID check completed, %d IDs to add", len(id_to_add))
+    flush_and_shutdown()
     

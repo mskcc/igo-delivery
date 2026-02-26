@@ -1,6 +1,13 @@
 #!/bin/bash
 # Copy runs off the Oxford Nanopore Promethion, only allow one rsync to run on the machine at a time
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SPLUNK_LOG="$SCRIPT_DIR/splunk_log.py"
+SCRIPT_NAME="rsync_promethion"
+
+log_info()  { python3 "$SPLUNK_LOG" "$SCRIPT_NAME" INFO "$1" 2>/dev/null || echo "[INFO] $1"; }
+log_error() { python3 "$SPLUNK_LOG" "$SCRIPT_NAME" ERROR "$1" 2>/dev/null || echo "[ERROR] $1"; }
+
 ARCHFILE=COPIED
 SOURCE=/data
 DEST=igo@igo-ln01:/igo/staging/promethion
@@ -16,18 +23,21 @@ fi
 touch $LOCK
 echo
 echo "Starting  $0. `date`"
+log_info "Starting rsync_promethion"
 
 function rsync_run {
     RUN=$1
     #chmod +x $SOURCE/$RUN
 
     echo "Archiving $SOURCE/$RUN `date` from $SOURCE/$RUN to $DEST/$RUN"
+    log_info "Starting rsync for Promethion run $RUN"
     $RSYNC --exclude=$ARCHFILE $SOURCE/$RUN $DEST/$RUN
     if [ $? != 0 ]
      then
       echo "$0: rsync #1 error on $RUN"
       echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN"
       echo "Failed command: $RSYNC $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #1 error on $RUN" skigodata@mskcc.org
+      log_error "rsync #1 failed for Promethion run $RUN"
     fi # [ $? != 0 ]
 
     date >> $RUN$ARCHFILE
@@ -38,9 +48,11 @@ function rsync_run {
       echo "$0: rsync #2 error on $RUN"
       echo "Failed command: $RSYNC -v                                       $SOURCE/$RUN $DEST/$RUN"
       echo "Failed command: $RSYNC -v                                       $SOURCE/$RUN $DEST/$RUN" | mail -s "$0: rsync #2 error on $RUN" skigodata@mskcc.org
+      log_error "rsync #2 failed for Promethion run $RUN"
     fi # [ $? != 0 ]
 
     echo "Archived $SOURCE/$RUN to $DEST/$RUN `date`"
+    log_info "Successfully archived Promethion run $RUN to $DEST"
 }
 
 cd $SOURCE
@@ -56,3 +68,4 @@ for RUN in $RUNS
 wait
 rm $LOCK
 echo "Completed $0. `date`"
+log_info "Completed rsync_promethion"

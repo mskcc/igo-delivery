@@ -2,7 +2,15 @@
 # a program to compress a fastq.gz into .ora and store the .fastq md5sum
 # Must be run as user seqdataown on id01
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SPLUNK_LOG="$SCRIPT_DIR/splunk_log.py"
+SCRIPT_NAME="oraCompressFastq"
+
+log_info()  { python3 "$SPLUNK_LOG" "$SCRIPT_NAME" INFO "$1" 2>/dev/null || echo "[INFO] $1"; }
+log_error() { python3 "$SPLUNK_LOG" "$SCRIPT_NAME" ERROR "$1" 2>/dev/null || echo "[ERROR] $1"; }
+
 echo "Processing: $1";
+log_info "Starting ORA compression for $1"
 
 FASTQ=$1
 # remove .gz from fastq.gz filename
@@ -17,7 +25,12 @@ echo "md5sum $FASTQONLY > $FASTQONLY'.md5'"
 md5sum $FASTQONLY > $FASTQONLY'.md5'
 
 echo "dragen ora compression started for $FASTQONLY"
+log_info "DRAGEN ORA compression started for $FASTQONLY"
 dragen  --enable-map-align false --ora-input $FASTQONLY --enable-ora true --ora-reference /igo/work/igo/DRAGEN-compression/lenadata-1 --output-directory $FASTQ_DIRECTORY
+
+if [ $? != 0 ]; then
+    log_error "DRAGEN ORA compression failed for $FASTQONLY"
+fi
 
 echo "Setting .ora last modified timestamp to $FASTQ_TIMESTAMP"
 touch -m -d "$FASTQ_TIMESTAMP" $FASTQONLY".ora"
@@ -29,6 +42,12 @@ rm $FASTQONLY
 cd /igo/work/mcmanamd/orad_2_5_5/
 
 /igo/work/mcmanamd/orad_2_5_5/orad $FASTQONLY".ora" --check
+
+if [ $? != 0 ]; then
+    log_error "ORA check failed for $FASTQONLY"
+else
+    log_info "Completed ORA compression for $FASTQONLY"
+fi
 
 #cleanup DRAGEN files
 cd $FASTQ_DIRECTORY
