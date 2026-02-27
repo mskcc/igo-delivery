@@ -1,6 +1,7 @@
 import sys
 import shutil
 import os
+import subprocess
 import socket
 from pathlib import Path
 import requests
@@ -140,10 +141,9 @@ class RequestPermissions:
             sample_folders.add(fastq_path.parent)
             set_acl_command = "{} {}".format(command_prefix, fastq)
             logger.info(set_acl_command)
-            result = os.system(set_acl_command)
-            if result != 0:
+            result = subprocess.run(set_acl_command, shell=True, capture_output=True, text=True)
+            if result.returncode != 0:
                 logger.error("ERROR SETTING ACL - Command: %s", set_acl_command)
-                logger.error("ERROR SETTING ACL - Return code: %s", result)
                 logger.error("ERROR SETTING ACL - STDOUT: %s", result.stdout)
                 logger.error("ERROR SETTING ACL - STDERR: %s", result.stderr)
         project_folders = set()
@@ -152,10 +152,9 @@ class RequestPermissions:
             parent_path = Path(sample_folder).parent
             project_folders.add(parent_path)
             logger.info(set_acl_command)
-            result = os.system(set_acl_command)
-            if result != 0:
+            result = subprocess.run(set_acl_command, shell=True, capture_output=True, text=True)
+            if result.returncode != 0:
                 logger.error("ERROR SETTING ACL at sample level - Command: %s", set_acl_command)
-                logger.error("ERROR SETTING ACL at sample level - Return code: %s", result)
                 logger.error("ERROR SETTING ACL at sample level - STDOUT: %s", result.stdout)
                 logger.error("ERROR SETTING ACL at sample level - STDERR: %s", result.stderr)
             sample_sheet = sample_folder.joinpath(Path("SampleSheet.csv"))
