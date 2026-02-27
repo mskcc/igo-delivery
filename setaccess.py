@@ -138,12 +138,14 @@ class RequestPermissions:
 
             # /igo/delivery/share/labname/Project_12345/MICHELLE_0682/Sample_mysample
             sample_folders.add(fastq_path.parent)
-
             set_acl_command = "{} {}".format(command_prefix, fastq)
             logger.info(set_acl_command)
             result = os.system(set_acl_command)
             if result != 0:
-                logger.error("ERROR SETTING ACL - %s", set_acl_command)
+                logger.error("ERROR SETTING ACL - Command: %s", set_acl_command)
+                logger.error("ERROR SETTING ACL - Return code: %s", result)
+                logger.error("ERROR SETTING ACL - STDOUT: %s", result.stdout)
+                logger.error("ERROR SETTING ACL - STDERR: %s", result.stderr)
         project_folders = set()
         for sample_folder in sample_folders:
             set_acl_command = "{} {}".format(command_prefix, sample_folder)
@@ -152,7 +154,10 @@ class RequestPermissions:
             logger.info(set_acl_command)
             result = os.system(set_acl_command)
             if result != 0:
-                logger.error("ERROR SETTING ACL at sample level - %s", set_acl_command)
+                logger.error("ERROR SETTING ACL at sample level - Command: %s", set_acl_command)
+                logger.error("ERROR SETTING ACL at sample level - Return code: %s", result)
+                logger.error("ERROR SETTING ACL at sample level - STDOUT: %s", result.stdout)
+                logger.error("ERROR SETTING ACL at sample level - STDERR: %s", result.stderr)
             sample_sheet = sample_folder.joinpath(Path("SampleSheet.csv"))
             if sample_sheet.exists():  # if SampleSheet.csv exists make it readable too
                 set_acl_command = "{} {}".format(command_prefix, sample_sheet)
