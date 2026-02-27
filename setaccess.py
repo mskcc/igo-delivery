@@ -144,7 +144,6 @@ class RequestPermissions:
             result = subprocess.run(set_acl_command, shell=True, capture_output=True, text=True)
             if result.returncode != 0:
                 logger.error("ERROR SETTING ACL - Command: %s", set_acl_command)
-                logger.error("ERROR SETTING ACL - STDOUT: %s", result.stdout)
                 logger.error("ERROR SETTING ACL - STDERR: %s", result.stderr)
         project_folders = set()
         for sample_folder in sample_folders:
@@ -155,7 +154,6 @@ class RequestPermissions:
             result = subprocess.run(set_acl_command, shell=True, capture_output=True, text=True)
             if result.returncode != 0:
                 logger.error("ERROR SETTING ACL at sample level - Command: %s", set_acl_command)
-                logger.error("ERROR SETTING ACL at sample level - STDOUT: %s", result.stdout)
                 logger.error("ERROR SETTING ACL at sample level - STDERR: %s", result.stderr)
             sample_sheet = sample_folder.joinpath(Path("SampleSheet.csv"))
             if sample_sheet.exists():  # if SampleSheet.csv exists make it readable too
@@ -202,7 +200,6 @@ class RequestPermissions:
             if result.returncode != 0:
                 logger.error("ERROR SETTING ACL - Command: %s", set_acl_command)
                 logger.error("ERROR SETTING ACL - Return code: %s", result.returncode)
-                logger.error("ERROR SETTING ACL - STDOUT: %s", result.stdout)
                 logger.error("ERROR SETTING ACL - STDERR: %s", result.stderr)
             #verify lab directory is readable by all since it has no ACLs set
             parent = os.path.dirname(self.request_share_path)
@@ -214,7 +211,6 @@ class RequestPermissions:
                 if chmod_result.returncode != 0:
                     logger.error("ERROR SETTING CHMOD - Command: %s", command)
                     logger.error("ERROR SETTING CHMOD - Return code: %s", chmod_result.returncode)
-                    logger.error("ERROR SETTING CHMOD - STDOUT: %s", chmod_result.stdout)
                     logger.error("ERROR SETTING CHMOD - STDERR: %s", chmod_result.stderr)
         else:
             logger.warning("%s share does not exist", self.request_share_path)
