@@ -66,7 +66,6 @@ def get_qc_stats(reqID):
             if run not in run_sample_qc_info:
                 run_sample_qc_info[run] = {}
             run_sample_qc_info[run][sample_name] = {"recipe": recipe, "qcstatus": qcstatus}
-
         return run_sample_qc_info
 
     except HTTPError as http_err:
