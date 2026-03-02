@@ -182,6 +182,7 @@ class RequestPermissions:
                     result = os.system(set_acl_reports)
         # /igo/delivery/FASTQ/MICHELLE_0284_BHVKK3DMXX/Project_09641_AS
         for project_folder in project_folders:
+            logger.info("Setting ACLs for project folder %s", project_folder)
             set_acl_command = "{} {}".format(command_prefix, project_folder)
             logger.info(set_acl_command)
             result = subprocess.run(set_acl_command, shell=True, capture_output=True, text=True)
