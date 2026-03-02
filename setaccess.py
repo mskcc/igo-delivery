@@ -141,7 +141,7 @@ class RequestPermissions:
             sample_folders.add(fastq_path.parent)
             set_acl_command = "{} {}".format(command_prefix, fastq)
             logger.info(set_acl_command)
-            result = subprocess.run(set_acl_command, shell=True, capture_output=True, text=True)
+            result = subprocess.run(set_acl_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             if result.returncode != 0:
                 logger.error("ERROR SETTING ACL - Command: %s", set_acl_command)
                 logger.error("ERROR SETTING ACL - STDERR: %s", result.stderr)
@@ -151,7 +151,7 @@ class RequestPermissions:
             parent_path = Path(sample_folder).parent
             project_folders.add(parent_path)
             logger.info(set_acl_command)
-            result = subprocess.run(set_acl_command, shell=True, capture_output=True, text=True)
+            result = subprocess.run(set_acl_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             if result.returncode != 0:
                 logger.error("ERROR SETTING ACL at sample level - Command: %s", set_acl_command)
                 logger.error("ERROR SETTING ACL at sample level - STDERR: %s", result.stderr)
@@ -185,7 +185,7 @@ class RequestPermissions:
             logger.info("Setting ACLs for project folder %s", project_folder)
             set_acl_command = "{} {}".format(command_prefix, project_folder)
             logger.info(set_acl_command)
-            result = subprocess.run(set_acl_command, shell=True, capture_output=True, text=True)
+            result = subprocess.run(set_acl_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             if result.returncode != 0:
                 logger.error("ERROR SETTING ACL at project level - Command: %s", set_acl_command)
                 logger.error("ERROR SETTING ACL at project level - STDERR: %s", result.stderr)
@@ -198,7 +198,7 @@ class RequestPermissions:
             if recursively:
                 set_acl_command = "nfs4_setfacl -R -L -S \"{}\" {}".format(temp_file_path, self.request_share_path)
             logger.info(set_acl_command)
-            result = subprocess.run(set_acl_command, shell=True, capture_output=True, text=True)
+            result = subprocess.run(set_acl_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             if result.returncode != 0:
                 logger.error("ERROR SETTING ACL - Command: %s", set_acl_command)
                 logger.error("ERROR SETTING ACL - Return code: %s", result.returncode)
@@ -209,7 +209,7 @@ class RequestPermissions:
             if mask != "775":
                 command = "chmod +rx {}".format(parent)
                 logger.info(command)
-                chmod_result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                chmod_result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
                 if chmod_result.returncode != 0:
                     logger.error("ERROR SETTING CHMOD - Command: %s", command)
                     logger.error("ERROR SETTING CHMOD - Return code: %s", chmod_result.returncode)
