@@ -73,7 +73,7 @@ class NGS_Stats:
         self.fastq_list = stats_json["fastqs"]    # list of original fastq files need to be linked
         self.samples = self.get_sample_run_dict() # dictionary of sample -> runs from fastq list
         self.requestName = stats_json["requestName"] # requestName
-        self.isDLP = stats_json["isDLP"] # 
+        self.isDLP = stats_json["isDLP"]  or self.requestName == "DNALibraryPrep"
         self.request = stats_json["request"]
 
 
@@ -169,7 +169,7 @@ def link_by_request(reqID):
     
 
 
-    if isDLP or stats.requestName == "DNALibraryPrep":
+    if isDLP:
         LinkDLPProjectToSamples.main(["REQUEST=", reqID])
     else:
         run_sample_qc = get_qc_stats(reqID)
