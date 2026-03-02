@@ -62,6 +62,8 @@ def get_qc_stats(reqID):
         return run_sample_qc_info
 
     except HTTPError as http_err:
+        logger.error("Request ID: %s", reqID)
+        logger.error("Request: %s", request)
         logger.error("HTTP error occurred: %s", http_err)
     
 # NGS_Stats class, need json from ngs endpoint to create.
@@ -72,8 +74,8 @@ class NGS_Stats:
         self.samples = self.get_sample_run_dict() # dictionary of sample -> runs from fastq list
         self.requestName = stats_json["requestName"] # requestName
         self.isDLP = stats_json["isDLP"] # 
-        self.requestType = stats_json["requestType"] # requestType
-        logger.info("Request type: %s", self.requestType)
+        self.request = stats_json["request"]
+
 
     # get dictionary of sample -> run by fastq_list
     def get_sample_run_dict(self):
