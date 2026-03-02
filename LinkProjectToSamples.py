@@ -72,6 +72,8 @@ class NGS_Stats:
         self.samples = self.get_sample_run_dict() # dictionary of sample -> runs from fastq list
         self.requestName = stats_json["requestName"] # requestName
         self.isDLP = stats_json["isDLP"] # 
+        self.requestType = stats_json["requestType"] # requestType
+        logger.info("Request type: %s", self.requestType)
 
     # get dictionary of sample -> run by fastq_list
     def get_sample_run_dict(self):
@@ -163,6 +165,8 @@ def link_by_request(reqID):
     # create symbol links for each sample
     # if it is DLP only create link for the run not each sample
     
+
+
     if isDLP:
         LinkDLPProjectToSamples.main(["REQUEST=", reqID])
     else:
