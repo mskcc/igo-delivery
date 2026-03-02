@@ -263,7 +263,7 @@ class RequestPermissions:
             # TODO check if group name is valid?
             if DOMAIN == "SDC" and group_name in SDC_group_name_map.keys():  
                 group_name = SDC_group_name_map[group_name]
-            acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtnCy\n"
+            acls += "A:g:" + group_name + ACL_DOMAIN + ":rxtncCy\n"
 
         logger.info("Checking if each account exists for all user IDs before trying to add the ACL with the id command")
         for user in users_set:
@@ -274,7 +274,7 @@ class RequestPermissions:
             if user_exists_result != 0:  # try again, for some reason the command occasionally fails when the id is valid
                 user_exists_result = os.system(user_exists_command)
             if user_exists_result == 0:
-                acls += "A::" + user + ACL_DOMAIN + ":rxtnCy\n"
+                acls += "A::" + user + ACL_DOMAIN + ":rxtncCy\n"
             else:
                 logger.warning("User %s does not exist, they should be removed from the DB.", user)
 
