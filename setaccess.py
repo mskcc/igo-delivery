@@ -184,9 +184,10 @@ class RequestPermissions:
         for project_folder in project_folders:
             set_acl_command = "{} {}".format(command_prefix, project_folder)
             logger.info(set_acl_command)
-            result = os.system(set_acl_command)
-            if result != 0:
-                logger.error("ERROR SETTING ACL at project level - %s", set_acl_command)
+            result = subprocess.run(set_acl_command, shell=True, capture_output=True, text=True)
+            if result.returncode != 0:
+                logger.error("ERROR SETTING ACL at project level - Command: %s", set_acl_command)
+                logger.error("ERROR SETTING ACL at project level - STDERR: %s", result.stderr)
     def grant_share_acls(self, temp_file_path, recursively):
         if self.request_share_exists():
             logger.info("Setting ACLS for all request share folders below %s", self.request_share_path)
