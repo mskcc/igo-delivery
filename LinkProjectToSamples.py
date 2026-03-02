@@ -63,7 +63,7 @@ def get_qc_stats(reqID):
 
     except HTTPError as http_err:
         logger.error("Request ID: %s", reqID)
-        logger.error("Request: %s", request)
+        # logger.error("Request: %s", request)
         logger.error("HTTP error occurred: %s", http_err)
     
 # NGS_Stats class, need json from ngs endpoint to create.
@@ -169,7 +169,7 @@ def link_by_request(reqID):
     
 
 
-    if isDLP:
+    if isDLP or stats.requestName == "DNALibraryPrep":
         LinkDLPProjectToSamples.main(["REQUEST=", reqID])
     else:
         run_sample_qc = get_qc_stats(reqID)
