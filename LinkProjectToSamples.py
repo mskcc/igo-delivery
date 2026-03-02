@@ -45,36 +45,49 @@ def get_qc_stats(reqID):
         response = requests.get(qc_query_url, auth=(username, password), verify=False)
         response.raise_for_status()
         run_sample_qc_info ={}
-        json_info = response.json()[0]["samples"]
+        resp_json = response.json()
+        if not resp_json or "samples" not in resp_json[0]:
+            logger.error("No sample data in QC response for request %s", reqID)
+            return run_sample_qc_info
 
-        # print(json_info)
-        # sys.exit()
+        json_info = resp_json[0]["samples"]
 
         for i in json_info:
-            run = i["qc"]["run"]
-            sample_name = "Sample_" + i["qc"]["sampleName"] + "_IGO_" + i["baseId"]
+            qc = i.get("qc", {})
+            run = qc.get("run")
+            sample_name_part = qc.get("sampleName")
+            base_id = i.get("baseId")
+            if not run or not sample_name_part or not base_id:
+                logger.warning("Skipping sample with missing qc/run/sampleName/baseId in request %s: %s", reqID, i)
+                continue
+            sample_name = "Sample_" + sample_name_part + "_IGO_" + base_id
+            recipe = i.get("recipe")
+            qcstatus = qc.get("qcStatus")
             if run not in run_sample_qc_info:
                 run_sample_qc_info[run] = {}
-                run_sample_qc_info[run][sample_name] = {"recipe": i["recipe"], "qcstatus": i["qc"]["qcStatus"]}
-            else:
-                run_sample_qc_info[run][sample_name] = {"recipe": i["recipe"], "qcstatus": i["qc"]["qcStatus"]}
+            run_sample_qc_info[run][sample_name] = {"recipe": recipe, "qcstatus": qcstatus}
 
         return run_sample_qc_info
 
     except HTTPError as http_err:
         logger.error("Request ID: %s", reqID)
-        # logger.error("Request: %s", request)
         logger.error("HTTP error occurred: %s", http_err)
+    except (KeyError, IndexError, TypeError) as err:
+        logger.error("Error parsing QC data for request %s: %s", reqID, err)
     
 # NGS_Stats class, need json from ngs endpoint to create.
 class NGS_Stats:
     def __init__(self, stats_json):
-        self.labName = stats_json["labName"]      # name of delivery folder
-        self.fastq_list = stats_json["fastqs"]    # list of original fastq files need to be linked
-        self.samples = self.get_sample_run_dict() # dictionary of sample -> runs from fastq list
-        self.requestName = stats_json["requestName"] # requestName
-        self.isDLP = stats_json["isDLP"]  or self.requestName == "DNALibraryPrep"
-        self.request = stats_json["request"]
+        self.labName = stats_json.get("labName", "")
+        self.fastq_list = stats_json.get("fastqs", [])
+        self.samples = self.get_sample_run_dict()
+        self.requestName = stats_json.get("requestName", "")
+        self.isDLP = stats_json.get("isDLP", False) or self.requestName == "DNALibraryPrep"
+        self.request = stats_json.get("request", "")
+        if not self.labName:
+            logger.warning("NGS_Stats missing labName: %s", stats_json)
+        if not self.fastq_list:
+            logger.warning("NGS_Stats missing fastqs: %s", stats_json)
 
 
     # get dictionary of sample -> run by fastq_list
@@ -207,8 +220,12 @@ def link_by_request(reqID):
                 else:
                     # check if folder exists before create link for cases that project contains old samples eg: 08822
                     if os.path.exists(slink):
-                        # check if recipe of the sample is SC_Chromium-Multiome-GEX or SC_Chromium-Multiome-ATAC, if yes append recipe to the folder name
-                        recipe = run_sample_qc[run_key][sample]["recipe"]
+                        recipe = (
+                            run_sample_qc
+                            .get(run_key, {})
+                            .get(sample, {})
+                            .get("recipe")
+                        )
                         if recipe == "SC_Chromium-Multiome-GEX":
                             dlink = dlink + "_GEX"
                         if recipe == "SC_Chromium-Multiome-ATAC":
@@ -253,7 +270,11 @@ def link_by_time(time):
         for possibleDelivered in deliver_list_orig:
             if "samples" not in possibleDelivered:
                 continue
-            toDeliver.append(possibleDelivered['requestId'])
+            req_id = possibleDelivered.get('requestId')
+            if not req_id:
+                logger.warning("Delivery entry missing requestId: %s", possibleDelivered)
+                continue
+            toDeliver.append(req_id)
         if len(toDeliver) == 0:
             logger.info("No projects need to deliver during last %s mins", time)
         else:
