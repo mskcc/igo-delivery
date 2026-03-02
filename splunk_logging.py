@@ -65,14 +65,16 @@ class JSONSplunkHandler(logging.Handler):
     
     def emit(self, record):
         try:
+            hostname = getattr(record, 'hostname', None) or __import__('socket').gethostname()
             payload = {
                 "event": {
                     "message": self.format(record),
                     "level": record.levelname,
                     "logger": record.name,
-                    "timestamp": record.created
+                    "timestamp": record.created,
+                    "host": hostname
                 },
-                "host": getattr(record, 'hostname', None) or __import__('socket').gethostname(),
+                "host": hostname,
                 "index": self.index,
                 "source": self.source,
                 "sourcetype": self.sourcetype,
