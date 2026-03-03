@@ -81,7 +81,7 @@ class NGS_Stats:
         self.fastq_list = stats_json.get("fastqs", [])
         self.samples = self.get_sample_run_dict()
         self.requestName = stats_json.get("requestName", "")
-        self.isDLP = stats_json.get("isDLP", False) or self.requestName == "DNALibraryPrep"
+        self.isDLP = stats_json.get("isDLP", False)
         self.request = stats_json.get("request", "")
         if not self.labName:
             logger.warning("NGS_Stats missing labName: %s", stats_json)
