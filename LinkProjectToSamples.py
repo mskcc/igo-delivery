@@ -183,6 +183,7 @@ def link_by_request(reqID):
 
     if isDLP:
         LinkDLPProjectToSamples.main(["REQUEST=", reqID])
+        return
     else:
         run_sample_qc = get_qc_stats(reqID)
         
