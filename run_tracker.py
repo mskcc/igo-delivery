@@ -380,18 +380,27 @@ def scan_sequencers(lookback_days=LOOKBACK_DAYS):
     return runs
 
 
-def check_staging_status(runs):
+def check_staging_status(runs, lookback_days=LOOKBACK_DAYS):
     """Check staging FASTQ directory for demux and hash status."""
     staging_path = Path(STAGING_FASTQ)
     if not staging_path.exists():
         return
+    
+    cutoff = datetime.now() - timedelta(days=lookback_days)
     
     try:
         for run_dir in staging_path.iterdir():
             if not run_dir.is_dir():
                 continue
             
+            # Skip if too old (unless already tracked from sequencer/samplesheet)
             run_name = run_dir.name
+            try:
+                mtime = datetime.fromtimestamp(run_dir.stat().st_mtime)
+                if mtime < cutoff and run_name not in runs:
+                    continue
+            except OSError:
+                continue
             
             # Create status if not from sequencer scan
             if run_name not in runs:
@@ -416,18 +425,27 @@ def check_staging_status(runs):
         logger.warning("Permission denied scanning %s", staging_path)
 
 
-def check_delivery_status(runs):
+def check_delivery_status(runs, lookback_days=LOOKBACK_DAYS):
     """Check delivery FASTQ directory for delivered runs."""
     delivery_path = Path(DELIVERY_FASTQ)
     if not delivery_path.exists():
         return
+    
+    cutoff = datetime.now() - timedelta(days=lookback_days)
     
     try:
         for run_dir in delivery_path.iterdir():
             if not run_dir.is_dir():
                 continue
             
+            # Skip if too old (unless already tracked from sequencer/samplesheet/staging)
             run_name = run_dir.name
+            try:
+                mtime = datetime.fromtimestamp(run_dir.stat().st_mtime)
+                if mtime < cutoff and run_name not in runs:
+                    continue
+            except OSError:
+                continue
             
             # Create status if not seen before
             if run_name not in runs:
