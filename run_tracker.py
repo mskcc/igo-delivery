@@ -566,40 +566,70 @@ def run_integrity_checks(runs, check_delivered_only=True):
     - Project symlinks exist
     - File counts match between staging and delivery
     """
+    # Count runs to check
+    runs_to_check = [r for r, s in runs.items() if not check_delivered_only or s.delivered]
+    total_runs = len(runs_to_check)
+    
+    if total_runs == 0:
+        logger.info("No delivered runs to check for integrity")
+        return
+    
+    logger.info("Starting integrity checks for %d delivered runs...", total_runs)
+    logger.info("Delivered runs to check: %s", runs_to_check)
+    
+    checked = 0
     for run_name, status in runs.items():
         # Only check delivered runs by default
         if check_delivered_only and not status.delivered:
             continue
         
+        checked += 1
         delivery_path = Path(DELIVERY_FASTQ) / run_name
         staging_path = Path(STAGING_FASTQ) / run_name
         
         if not delivery_path.exists():
+            logger.debug("Skipping %s - delivery path not found", run_name)
             continue
         
+        # Progress logging every 10 runs or for last run
+        if checked % 10 == 0 or checked == total_runs:
+            logger.info("Integrity check progress: %d/%d runs (%d%%)", 
+                       checked, total_runs, int(checked * 100 / total_runs))
+        
+        logger.debug("Checking integrity: %s", run_name)
+        
         # Check ACLs
+        logger.debug("  [%s] Checking ACLs...", run_name)
         status.acls_set = check_acls(delivery_path)
         if status.acls_set is False:
             status.integrity_issues.append("ACLs not set")
+            logger.warning("  [%s] ACLs not set!", run_name)
         
         # Check MD5 hashes
+        logger.debug("  [%s] Checking MD5 hashes...", run_name)
         status.md5_verified = verify_md5_hashes(run_name)
         if status.md5_verified is False:
             status.integrity_issues.append("MD5 hash mismatch")
+            logger.warning("  [%s] MD5 hash mismatch!", run_name)
         
         # Check ngs-stats registration
+        logger.debug("  [%s] Checking ngs-stats registration...", run_name)
         status.ngs_stats_registered = check_ngs_stats_registration(run_name)
         if status.ngs_stats_registered is False:
             status.integrity_issues.append("Not registered in ngs-stats")
+            logger.warning("  [%s] Not registered in ngs-stats!", run_name)
         
         # Check project symlinks
         if status.projects:
+            logger.debug("  [%s] Checking symlinks for %d projects...", run_name, len(status.projects))
             symlinks_ok, missing = check_project_symlinks(status.projects)
             status.symlinks_created = symlinks_ok
             if symlinks_ok is False:
                 status.integrity_issues.append(f"Missing symlinks: {missing}")
+                logger.warning("  [%s] Missing symlinks: %s", run_name, missing)
         
         # Count files
+        logger.debug("  [%s] Counting FASTQ files...", run_name)
         if staging_path.exists():
             status.staging_file_count = count_fastq_files(staging_path)
         status.delivery_file_count = count_fastq_files(delivery_path)
@@ -609,6 +639,16 @@ def run_integrity_checks(runs, check_delivered_only=True):
                 status.integrity_issues.append(
                     f"File count mismatch: staging={status.staging_file_count}, delivery={status.delivery_file_count}"
                 )
+                logger.warning("  [%s] File count mismatch: staging=%d, delivery=%d", 
+                             run_name, status.staging_file_count, status.delivery_file_count)
+        
+        # Log completion for this run
+        if status.integrity_issues:
+            logger.info("  [%s] Completed with %d issues", run_name, len(status.integrity_issues))
+        else:
+            logger.debug("  [%s] Completed - OK", run_name)
+    
+    logger.info("Integrity checks complete: %d runs checked", checked)
 
 
 def get_pipeline_summary(runs):
@@ -773,17 +813,28 @@ def run_once(run_integrity=True):
     logger.info("Starting run tracker scan")
     
     # Scan sample sheets first (for upcoming runs)
+    logger.info("Scanning sample sheets...")
     samplesheet_runs = scan_samplesheets()
+    logger.info("Found %d sample sheets: %s", len(samplesheet_runs), list(samplesheet_runs.keys()))
     
     # Scan sequencer directories
+    logger.info("Scanning sequencer directories...")
     runs = scan_sequencers()
+    logger.info("Found %d runs on sequencers: %s", len(runs), list(runs.keys()))
     
     # Merge sample sheet info
     merge_samplesheet_info(runs, samplesheet_runs)
     
     # Check staging and delivery status
+    logger.info("Checking staging status...")
     check_staging_status(runs)
+    demuxed_runs = [r for r, s in runs.items() if s.demux_complete]
+    logger.info("Found %d demuxed runs in staging: %s", len(demuxed_runs), demuxed_runs)
+    
+    logger.info("Checking delivery status...")
     check_delivery_status(runs)
+    delivered_runs = [r for r, s in runs.items() if s.delivered]
+    logger.info("Found %d delivered runs: %s", len(delivered_runs), delivered_runs)
     
     # Run integrity checks on delivered runs
     if run_integrity:
