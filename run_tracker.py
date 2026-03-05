@@ -322,18 +322,28 @@ def extract_run_name_from_dir(dir_name):
     """
     Extract standardized run name from directory name.
     Removes YYMMDD_ prefix if present.
-    Returns (run_name, flowcell) tuple.
+    Returns (run_name, flowcell, sequencer) tuple.
+    
+    Example: 250219_DIANA_0401_AHJWFFDRX5 -> (DIANA_0401_AHJWFFDRX5, AHJWFFDRX5, diana)
     """
     name = dir_name
     # Remove date prefix: YYMMDD_SEQUENCER_NNNN_FLOWCELL -> SEQUENCER_NNNN_FLOWCELL
     if len(name) > 7 and name[6] == '_':
         name = name[7:]
     
-    # Extract flowcell (last component after underscore, starting with A/B or alphanumeric)
     parts = name.split('_')
     flowcell = parts[-1] if len(parts) >= 3 else None
     
-    return name, flowcell
+    # Extract sequencer from first part of the standardized name
+    sequencer = None
+    if len(parts) >= 3:
+        seq_name = parts[0].upper()
+        known_sequencers = {'DIANA', 'MICHELLE', 'RUTH', 'SCOTT', 'PEPE', 'AMELIE', 
+                           'BONO', 'FAUCI', 'FAUCI2', 'JOHNSAWYERS', 'AYYAN', 'TOMS', 'VIC'}
+        if seq_name in known_sequencers:
+            sequencer = seq_name.lower()
+    
+    return name, flowcell, sequencer
 
 
 def scan_sequencers(lookback_days=LOOKBACK_DAYS):
@@ -360,9 +370,9 @@ def scan_sequencers(lookback_days=LOOKBACK_DAYS):
                 except OSError:
                     continue
                 
-                run_name, flowcell = extract_run_name_from_dir(run_dir.name)
+                run_name, flowcell, _ = extract_run_name_from_dir(run_dir.name)
                 
-                status = RunStatus(run_name, seq_name)
+                status = RunStatus(run_name, seq_name)  # Use seq_name from directory iteration
                 status.flowcell = flowcell
                 status.run_started = True
                 status.run_started_time = ctime
@@ -404,7 +414,10 @@ def check_staging_status(runs, lookback_days=LOOKBACK_DAYS):
             
             # Create status if not from sequencer scan
             if run_name not in runs:
-                runs[run_name] = RunStatus(run_name)
+                _, flowcell, sequencer = extract_run_name_from_dir(run_name)
+                status = RunStatus(run_name, sequencer)
+                status.flowcell = flowcell
+                runs[run_name] = status
             
             status = runs[run_name]
             status.demux_complete = True
@@ -449,7 +462,10 @@ def check_delivery_status(runs, lookback_days=LOOKBACK_DAYS):
             
             # Create status if not seen before
             if run_name not in runs:
-                runs[run_name] = RunStatus(run_name)
+                _, flowcell, sequencer = extract_run_name_from_dir(run_name)
+                status = RunStatus(run_name, sequencer)
+                status.flowcell = flowcell
+                runs[run_name] = status
             
             status = runs[run_name]
             status.delivered = True
@@ -715,6 +731,8 @@ def log_run_statuses(runs, log_individual=True, run_integrity=False):
             "stage": status.stage,
             "stage_order": _stage_order(status.stage),  # For sorting
             "scheduled_date": status.samplesheet_date or "",
+            "samplesheet_file": status.samplesheet_file or "",
+            "samplesheet_path": f"{SAMPLESHEET_DIR}/{status.samplesheet_file}" if status.samplesheet_file else "",
             "has_samplesheet": "Yes" if status.samplesheet_file else "No",
             "run_started": "Yes" if status.run_started else "No",
             "seq_complete": "Yes" if status.sequencing_complete else "No",
