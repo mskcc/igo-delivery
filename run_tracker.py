@@ -978,10 +978,8 @@ def run_once(run_integrity=True):
     runs = scan_sequencers()
     logger.info("Found %d runs on sequencers: %s", len(runs), list(runs.keys()))
     
-    # Merge sample sheet info
-    merge_samplesheet_info(runs, samplesheet_runs)
-    
-    # Check staging and delivery status
+    # Check staging and delivery status BEFORE merging samplesheets
+    # This ensures runs found only in staging/delivery can be matched with samplesheets
     logger.info("Checking staging status...")
     check_staging_status(runs)
     demuxed_runs = [r for r, s in runs.items() if s.demux_complete]
@@ -991,6 +989,12 @@ def run_once(run_integrity=True):
     check_delivery_status(runs)
     delivered_runs = [r for r, s in runs.items() if s.delivered]
     logger.info("Found %d delivered runs: %s", len(delivered_runs), delivered_runs)
+    
+    # NOW merge sample sheet info (after all runs are discovered)
+    logger.info("Merging sample sheet info...")
+    merge_samplesheet_info(runs, samplesheet_runs)
+    runs_with_samplesheets = [r for r, s in runs.items() if s.samplesheet_file]
+    logger.info("Matched %d runs with sample sheets", len(runs_with_samplesheets))
     
     # Run integrity checks on delivered runs
     if run_integrity:
