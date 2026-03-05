@@ -68,7 +68,8 @@ class RunStatus:
     def __init__(self, run_name, sequencer=None):
         self.run_name = run_name
         self.sequencer = sequencer
-        self.flowcell = None
+        self.flowcell = None  # Original flowcell ID (e.g., A23FNGVLT3)
+        self.flowcell_normalized = None  # Normalized flowcell without A/B prefix (e.g., 23FNGVLT3)
         
         # Samplesheet tracking - support multiple (regular + DRAGEN)
         self.samplesheet_file = None  # Primary samplesheet filename
@@ -323,11 +324,13 @@ def scan_samplesheets(lookback_days=LOOKBACK_DAYS):
             # Ensure uppercase for consistent matching
             run_name = parsed['run_name'].upper()
             flowcell = parsed['flowcell'].upper() if parsed['flowcell'] else None
+            flowcell_norm = normalize_flowcell(flowcell)
             
             # Create or update status
             if run_name not in runs:
                 status = RunStatus(run_name, parsed['sequencer'])
                 status.flowcell = flowcell
+                status.flowcell_normalized = flowcell_norm
                 runs[run_name] = status
             
             # Add this samplesheet (handles both regular and DRAGEN)
@@ -344,6 +347,7 @@ def scan_samplesheets(lookback_days=LOOKBACK_DAYS):
                 status.sequencer = parsed['sequencer']
             if flowcell and not status.flowcell:
                 status.flowcell = flowcell
+                status.flowcell_normalized = flowcell_norm
     
     except PermissionError:
         logger.warning("Permission denied scanning %s", samplesheet_path)
@@ -351,13 +355,27 @@ def scan_samplesheets(lookback_days=LOOKBACK_DAYS):
     return runs
 
 
+def normalize_flowcell(flowcell):
+    """
+    Normalize flowcell ID by stripping the A/B side prefix if present.
+    Example: A23FNGVLT3 -> 23FNGVLT3, BHJWFFDRX5 -> HJWFFDRX5
+    """
+    if not flowcell:
+        return None
+    fc = flowcell.upper()
+    # Strip A/B prefix if flowcell starts with A or B followed by alphanumeric
+    if len(fc) > 1 and fc[0] in ('A', 'B') and fc[1].isalnum():
+        return fc[1:]
+    return fc
+
+
 def extract_run_name_from_dir(dir_name):
     """
     Extract standardized run name from directory name.
     Removes YYMMDD_ prefix if present.
-    Returns (run_name, flowcell, sequencer) tuple.
+    Returns (run_name, flowcell, flowcell_normalized, sequencer) tuple.
     
-    Example: 250219_DIANA_0401_AHJWFFDRX5 -> (DIANA_0401_AHJWFFDRX5, AHJWFFDRX5, diana)
+    Example: 250219_DIANA_0401_AHJWFFDRX5 -> (DIANA_0401_AHJWFFDRX5, AHJWFFDRX5, HJWFFDRX5, diana)
     """
     name = dir_name
     # Remove date prefix: YYMMDD_SEQUENCER_NNNN_FLOWCELL -> SEQUENCER_NNNN_FLOWCELL
@@ -365,18 +383,35 @@ def extract_run_name_from_dir(dir_name):
         name = name[7:]
     
     parts = name.split('_')
-    flowcell = parts[-1] if len(parts) >= 3 else None
     
-    # Extract sequencer from first part of the standardized name
+    # Known sequencer names
+    known_sequencers = {'DIANA', 'MICHELLE', 'RUTH', 'SCOTT', 'PEPE', 'AMELIE', 
+                       'BONO', 'FAUCI', 'FAUCI2', 'JOHNSAWYERS', 'AYYAN', 'TOMS', 'VIC'}
+    
+    flowcell = None
     sequencer = None
+    
     if len(parts) >= 3:
+        # Standard format: SEQUENCER_NNNN_FLOWCELL or SEQUENCER_NNNN_FLOWCELL_SUFFIX
+        flowcell = parts[2]  # Third part is flowcell (not last, in case of _DLP suffix)
         seq_name = parts[0].upper()
-        known_sequencers = {'DIANA', 'MICHELLE', 'RUTH', 'SCOTT', 'PEPE', 'AMELIE', 
-                           'BONO', 'FAUCI', 'FAUCI2', 'JOHNSAWYERS', 'AYYAN', 'TOMS', 'VIC'}
         if seq_name in known_sequencers:
             sequencer = seq_name.lower()
+    elif len(parts) == 2:
+        # Missing sequencer: NNNN_FLOWCELL - try to extract flowcell
+        # Check if first part looks like a run number (digits)
+        if parts[0].isdigit():
+            flowcell = parts[1]
+        else:
+            # Could be SEQUENCER_FLOWCELL (unusual)
+            seq_name = parts[0].upper()
+            if seq_name in known_sequencers:
+                sequencer = seq_name.lower()
+                flowcell = parts[1]
     
-    return name, flowcell, sequencer
+    flowcell_normalized = normalize_flowcell(flowcell)
+    
+    return name, flowcell, flowcell_normalized, sequencer
 
 
 def scan_sequencers(lookback_days=LOOKBACK_DAYS):
@@ -403,11 +438,12 @@ def scan_sequencers(lookback_days=LOOKBACK_DAYS):
                 except OSError:
                     continue
                 
-                normalized_name, flowcell, _ = extract_run_name_from_dir(run_dir.name)
+                normalized_name, flowcell, flowcell_norm, _ = extract_run_name_from_dir(run_dir.name)
                 run_name = normalized_name.upper()  # Uppercase for consistent matching
                 
                 status = RunStatus(run_name, seq_name)  # Use seq_name from directory iteration
                 status.flowcell = flowcell.upper() if flowcell else None
+                status.flowcell_normalized = flowcell_norm.upper() if flowcell_norm else None
                 status.run_started = True
                 status.run_started_time = ctime
                 
@@ -439,7 +475,7 @@ def check_staging_status(runs, lookback_days=LOOKBACK_DAYS):
             
             # Normalize run name (strip date prefix, uppercase for consistency)
             raw_name = run_dir.name
-            normalized_name, flowcell, sequencer = extract_run_name_from_dir(raw_name)
+            normalized_name, flowcell, flowcell_norm, sequencer = extract_run_name_from_dir(raw_name)
             run_name = normalized_name.upper()  # Uppercase for consistent matching
             
             try:
@@ -453,6 +489,7 @@ def check_staging_status(runs, lookback_days=LOOKBACK_DAYS):
             if run_name not in runs:
                 status = RunStatus(run_name, sequencer)
                 status.flowcell = flowcell.upper() if flowcell else None
+                status.flowcell_normalized = flowcell_norm.upper() if flowcell_norm else None
                 runs[run_name] = status
             
             status = runs[run_name]
@@ -489,7 +526,7 @@ def check_delivery_status(runs, lookback_days=LOOKBACK_DAYS):
             
             # Normalize run name (strip date prefix, uppercase for consistency)
             raw_name = run_dir.name
-            normalized_name, flowcell, sequencer = extract_run_name_from_dir(raw_name)
+            normalized_name, flowcell, flowcell_norm, sequencer = extract_run_name_from_dir(raw_name)
             run_name = normalized_name.upper()  # Uppercase for consistent matching
             
             try:
@@ -503,6 +540,7 @@ def check_delivery_status(runs, lookback_days=LOOKBACK_DAYS):
             if run_name not in runs:
                 status = RunStatus(run_name, sequencer)
                 status.flowcell = flowcell.upper() if flowcell else None
+                status.flowcell_normalized = flowcell_norm.upper() if flowcell_norm else None
                 runs[run_name] = status
             
             status = runs[run_name]
@@ -859,11 +897,13 @@ def merge_samplesheet_info(runs, samplesheet_runs):
     Merge sample sheet information into existing runs.
     Also adds new runs that only exist as sample sheets (upcoming).
     Uses case-insensitive matching for run names and flowcells.
+    Also tries matching by normalized flowcell (without A/B prefix).
     """
     for ss_run_name, ss_status in samplesheet_runs.items():
         # Normalize run name to uppercase for matching
         run_name_upper = ss_run_name.upper()
         ss_flowcell_upper = ss_status.flowcell.upper() if ss_status.flowcell else None
+        ss_flowcell_norm = ss_status.flowcell_normalized.upper() if ss_status.flowcell_normalized else normalize_flowcell(ss_flowcell_upper)
         
         # Try exact match first (case-insensitive)
         if run_name_upper in runs:
@@ -878,25 +918,41 @@ def merge_samplesheet_info(runs, samplesheet_runs):
                 )
             if not existing.flowcell and ss_flowcell_upper:
                 existing.flowcell = ss_flowcell_upper
+                existing.flowcell_normalized = ss_flowcell_norm
             if not existing.sequencer and ss_status.sequencer:
                 existing.sequencer = ss_status.sequencer
         else:
-            # Check if we can match by flowcell (case-insensitive)
+            # Check if we can match by flowcell (try exact first, then normalized)
             matched = False
             for existing in runs.values():
                 existing_flowcell_upper = existing.flowcell.upper() if existing.flowcell else None
+                existing_flowcell_norm = existing.flowcell_normalized.upper() if existing.flowcell_normalized else normalize_flowcell(existing_flowcell_upper)
+                
+                # Try exact flowcell match first
+                flowcell_match = False
                 if existing_flowcell_upper and ss_flowcell_upper:
                     if existing_flowcell_upper == ss_flowcell_upper:
-                        # Copy all samplesheets from ss_status to existing
-                        for ss in ss_status.samplesheets:
-                            existing.add_samplesheet(
-                                filename=ss['file'],
-                                mtime=ss['time'],
-                                is_dragen=ss['is_dragen'],
-                                date=ss_status.samplesheet_date
-                            )
-                        matched = True
-                        break
+                        flowcell_match = True
+                
+                # Try normalized flowcell match (strips A/B prefix)
+                if not flowcell_match and existing_flowcell_norm and ss_flowcell_norm:
+                    if existing_flowcell_norm == ss_flowcell_norm:
+                        flowcell_match = True
+                
+                if flowcell_match:
+                    # Copy all samplesheets from ss_status to existing
+                    for ss in ss_status.samplesheets:
+                        existing.add_samplesheet(
+                            filename=ss['file'],
+                            mtime=ss['time'],
+                            is_dragen=ss['is_dragen'],
+                            date=ss_status.samplesheet_date
+                        )
+                    # Update sequencer if missing
+                    if not existing.sequencer and ss_status.sequencer:
+                        existing.sequencer = ss_status.sequencer
+                    matched = True
+                    break
             
             if not matched:
                 # New upcoming run (sample sheet exists but run not started)
@@ -904,6 +960,7 @@ def merge_samplesheet_info(runs, samplesheet_runs):
                 ss_status.run_name = run_name_upper
                 if ss_status.flowcell:
                     ss_status.flowcell = ss_flowcell_upper
+                    ss_status.flowcell_normalized = ss_flowcell_norm
                 runs[run_name_upper] = ss_status
 
 
