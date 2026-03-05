@@ -69,9 +69,13 @@ class RunStatus:
         self.run_name = run_name
         self.sequencer = sequencer
         self.flowcell = None
-        self.samplesheet_file = None
-        self.samplesheet_time = None
+        
+        # Samplesheet tracking - support multiple (regular + DRAGEN)
+        self.samplesheet_file = None  # Primary samplesheet filename
+        self.samplesheet_time = None  # Primary samplesheet mtime
         self.samplesheet_date = None  # Scheduled date from filename
+        self.samplesheets = []  # List of all samplesheets: [{'file': str, 'path': str, 'time': datetime, 'is_dragen': bool}]
+        
         self.run_started = False
         self.run_started_time = None
         self.sequencing_complete = False
@@ -95,6 +99,32 @@ class RunStatus:
         self.symlinks_created = None  # True/False/None
         self.staging_file_count = 0
         self.delivery_file_count = 0
+    
+    def add_samplesheet(self, filename, mtime, is_dragen=False, date=None):
+        """Add a samplesheet to this run. Handles both regular and DRAGEN sheets."""
+        ss_entry = {
+            'file': filename,
+            'path': f"{SAMPLESHEET_DIR}/{filename}",
+            'time': mtime,
+            'is_dragen': is_dragen
+        }
+        
+        # Check if this exact file is already added
+        for existing in self.samplesheets:
+            if existing['file'] == filename:
+                # Update if newer
+                if mtime and (existing['time'] is None or mtime > existing['time']):
+                    existing['time'] = mtime
+                return
+        
+        self.samplesheets.append(ss_entry)
+        
+        # Update primary samplesheet (prefer most recent)
+        if self.samplesheet_time is None or (mtime and mtime > self.samplesheet_time):
+            self.samplesheet_file = filename
+            self.samplesheet_time = mtime
+            if date:
+                self.samplesheet_date = date
     
     def determine_stage(self):
         """Determine the current pipeline stage."""
@@ -290,27 +320,30 @@ def scan_samplesheets(lookback_days=LOOKBACK_DAYS):
             if not parsed:
                 continue
             
-            run_name = parsed['run_name']
+            # Ensure uppercase for consistent matching
+            run_name = parsed['run_name'].upper()
+            flowcell = parsed['flowcell'].upper() if parsed['flowcell'] else None
             
             # Create or update status
             if run_name not in runs:
                 status = RunStatus(run_name, parsed['sequencer'])
-                status.flowcell = parsed['flowcell']
-                status.samplesheet_file = parsed['filename']
-                status.samplesheet_time = mtime
-                status.samplesheet_date = parsed['date']
+                status.flowcell = flowcell
                 runs[run_name] = status
-            else:
-                # Update if this sample sheet is newer
-                existing = runs[run_name]
-                if existing.samplesheet_time is None or mtime > existing.samplesheet_time:
-                    existing.samplesheet_file = parsed['filename']
-                    existing.samplesheet_time = mtime
-                    existing.samplesheet_date = parsed['date']
-                    if parsed['sequencer']:
-                        existing.sequencer = parsed['sequencer']
-                    if parsed['flowcell']:
-                        existing.flowcell = parsed['flowcell']
+            
+            # Add this samplesheet (handles both regular and DRAGEN)
+            status = runs[run_name]
+            status.add_samplesheet(
+                filename=parsed['filename'],
+                mtime=mtime,
+                is_dragen=parsed.get('is_dragen', False),
+                date=parsed['date']
+            )
+            
+            # Update sequencer/flowcell if not set
+            if parsed['sequencer'] and not status.sequencer:
+                status.sequencer = parsed['sequencer']
+            if flowcell and not status.flowcell:
+                status.flowcell = flowcell
     
     except PermissionError:
         logger.warning("Permission denied scanning %s", samplesheet_path)
@@ -370,10 +403,11 @@ def scan_sequencers(lookback_days=LOOKBACK_DAYS):
                 except OSError:
                     continue
                 
-                run_name, flowcell, _ = extract_run_name_from_dir(run_dir.name)
+                normalized_name, flowcell, _ = extract_run_name_from_dir(run_dir.name)
+                run_name = normalized_name.upper()  # Uppercase for consistent matching
                 
                 status = RunStatus(run_name, seq_name)  # Use seq_name from directory iteration
-                status.flowcell = flowcell
+                status.flowcell = flowcell.upper() if flowcell else None
                 status.run_started = True
                 status.run_started_time = ctime
                 
@@ -403,8 +437,11 @@ def check_staging_status(runs, lookback_days=LOOKBACK_DAYS):
             if not run_dir.is_dir():
                 continue
             
-            # Skip if too old (unless already tracked from sequencer/samplesheet)
-            run_name = run_dir.name
+            # Normalize run name (strip date prefix, uppercase for consistency)
+            raw_name = run_dir.name
+            normalized_name, flowcell, sequencer = extract_run_name_from_dir(raw_name)
+            run_name = normalized_name.upper()  # Uppercase for consistent matching
+            
             try:
                 mtime = datetime.fromtimestamp(run_dir.stat().st_mtime)
                 if mtime < cutoff and run_name not in runs:
@@ -414,9 +451,8 @@ def check_staging_status(runs, lookback_days=LOOKBACK_DAYS):
             
             # Create status if not from sequencer scan
             if run_name not in runs:
-                _, flowcell, sequencer = extract_run_name_from_dir(run_name)
                 status = RunStatus(run_name, sequencer)
-                status.flowcell = flowcell
+                status.flowcell = flowcell.upper() if flowcell else None
                 runs[run_name] = status
             
             status = runs[run_name]
@@ -451,8 +487,11 @@ def check_delivery_status(runs, lookback_days=LOOKBACK_DAYS):
             if not run_dir.is_dir():
                 continue
             
-            # Skip if too old (unless already tracked from sequencer/samplesheet/staging)
-            run_name = run_dir.name
+            # Normalize run name (strip date prefix, uppercase for consistency)
+            raw_name = run_dir.name
+            normalized_name, flowcell, sequencer = extract_run_name_from_dir(raw_name)
+            run_name = normalized_name.upper()  # Uppercase for consistent matching
+            
             try:
                 mtime = datetime.fromtimestamp(run_dir.stat().st_mtime)
                 if mtime < cutoff and run_name not in runs:
@@ -462,9 +501,8 @@ def check_delivery_status(runs, lookback_days=LOOKBACK_DAYS):
             
             # Create status if not seen before
             if run_name not in runs:
-                _, flowcell, sequencer = extract_run_name_from_dir(run_name)
                 status = RunStatus(run_name, sequencer)
-                status.flowcell = flowcell
+                status.flowcell = flowcell.upper() if flowcell else None
                 runs[run_name] = status
             
             status = runs[run_name]
@@ -733,7 +771,12 @@ def log_run_statuses(runs, log_individual=True, run_integrity=False):
             "scheduled_date": status.samplesheet_date or "",
             "samplesheet_file": status.samplesheet_file or "",
             "samplesheet_path": f"{SAMPLESHEET_DIR}/{status.samplesheet_file}" if status.samplesheet_file else "",
+            "samplesheet_count": len(status.samplesheets),
+            "samplesheet_paths": "; ".join([ss['path'] for ss in status.samplesheets]) if status.samplesheets else "",
+            "samplesheet_regular": next((ss['path'] for ss in status.samplesheets if not ss['is_dragen']), ""),
+            "samplesheet_dragen": next((ss['path'] for ss in status.samplesheets if ss['is_dragen']), ""),
             "has_samplesheet": "Yes" if status.samplesheet_file else "No",
+            "has_dragen_samplesheet": "Yes" if any(ss['is_dragen'] for ss in status.samplesheets) else "No",
             "run_started": "Yes" if status.run_started else "No",
             "seq_complete": "Yes" if status.sequencing_complete else "No",
             "demuxed": "Yes" if status.demux_complete else "No",
@@ -815,33 +858,53 @@ def merge_samplesheet_info(runs, samplesheet_runs):
     """
     Merge sample sheet information into existing runs.
     Also adds new runs that only exist as sample sheets (upcoming).
+    Uses case-insensitive matching for run names and flowcells.
     """
-    for run_name, ss_status in samplesheet_runs.items():
-        if run_name in runs:
-            # Update existing run with sample sheet info
-            existing = runs[run_name]
-            existing.samplesheet_file = ss_status.samplesheet_file
-            existing.samplesheet_time = ss_status.samplesheet_time
-            existing.samplesheet_date = ss_status.samplesheet_date
-            if not existing.flowcell and ss_status.flowcell:
-                existing.flowcell = ss_status.flowcell
+    for ss_run_name, ss_status in samplesheet_runs.items():
+        # Normalize run name to uppercase for matching
+        run_name_upper = ss_run_name.upper()
+        ss_flowcell_upper = ss_status.flowcell.upper() if ss_status.flowcell else None
+        
+        # Try exact match first (case-insensitive)
+        if run_name_upper in runs:
+            existing = runs[run_name_upper]
+            # Copy all samplesheets from ss_status to existing
+            for ss in ss_status.samplesheets:
+                existing.add_samplesheet(
+                    filename=ss['file'],
+                    mtime=ss['time'],
+                    is_dragen=ss['is_dragen'],
+                    date=ss_status.samplesheet_date
+                )
+            if not existing.flowcell and ss_flowcell_upper:
+                existing.flowcell = ss_flowcell_upper
             if not existing.sequencer and ss_status.sequencer:
                 existing.sequencer = ss_status.sequencer
         else:
-            # Check if we can match by flowcell
+            # Check if we can match by flowcell (case-insensitive)
             matched = False
             for existing in runs.values():
-                if existing.flowcell and ss_status.flowcell:
-                    if existing.flowcell == ss_status.flowcell:
-                        existing.samplesheet_file = ss_status.samplesheet_file
-                        existing.samplesheet_time = ss_status.samplesheet_time
-                        existing.samplesheet_date = ss_status.samplesheet_date
+                existing_flowcell_upper = existing.flowcell.upper() if existing.flowcell else None
+                if existing_flowcell_upper and ss_flowcell_upper:
+                    if existing_flowcell_upper == ss_flowcell_upper:
+                        # Copy all samplesheets from ss_status to existing
+                        for ss in ss_status.samplesheets:
+                            existing.add_samplesheet(
+                                filename=ss['file'],
+                                mtime=ss['time'],
+                                is_dragen=ss['is_dragen'],
+                                date=ss_status.samplesheet_date
+                            )
                         matched = True
                         break
             
             if not matched:
                 # New upcoming run (sample sheet exists but run not started)
-                runs[run_name] = ss_status
+                # Store with uppercase run name for consistency
+                ss_status.run_name = run_name_upper
+                if ss_status.flowcell:
+                    ss_status.flowcell = ss_flowcell_upper
+                runs[run_name_upper] = ss_status
 
 
 def run_once(run_integrity=True):
