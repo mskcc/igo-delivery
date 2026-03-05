@@ -101,8 +101,16 @@ class RunStatus:
         self.staging_file_count = 0
         self.delivery_file_count = 0
     
+    KNOWN_SEQUENCERS = {'DIANA', 'MICHELLE', 'RUTH', 'SCOTT', 'PEPE', 'AMELIE',
+                        'BONO', 'FAUCI', 'FAUCI2', 'JOHNSAWYERS', 'AYYAN', 'TOMS', 'VIC'}
+
     def add_samplesheet(self, filename, mtime, is_dragen=False, date=None):
         """Add a samplesheet to this run. Handles both regular and DRAGEN sheets."""
+        parts = filename.upper().replace('.CSV', '').split('_')
+        if not any(part in self.KNOWN_SEQUENCERS for part in parts):
+            logger.debug("Skipping samplesheet without sequencer name: %s", filename)
+            return
+
         ss_entry = {
             'file': filename,
             'path': f"{SAMPLESHEET_DIR}/{filename}",
@@ -203,14 +211,17 @@ def parse_samplesheet_filename(filename):
     """
     Parse sample sheet filename to extract run information.
     
-    Patterns:
+    Supported patterns (must include sequencer name):
     - SampleSheet_YYMMDD_SEQUENCER_NNNN_FLOWCELL.csv
     - SampleSheetDRAGEN_YYMMDD_SEQUENCER_NNNN_FLOWCELL.csv
-    - SampleSheetDRAGEN_FLOWCELL.csv (short form)
     - SampleSheetDRAGEN_TEMP_MMDDYY_SEQUENCER_NNNN_FLOWCELL.csv
     
+    Ignored patterns (no sequencer info):
+    - SampleSheetDRAGEN_FLOWCELL.csv (short form)
+    - SampleSheet_FLOWCELL.csv (short form)
+    
     Returns dict with: sequencer, run_number, flowcell, date, run_name, is_dragen
-    Returns None if filename doesn't match expected patterns or is OLD/ORIGINAL.
+    Returns None if filename doesn't match expected patterns, is OLD/ORIGINAL, or has no sequencer.
     """
     # Skip OLD, ORIGINAL, or other prefixed files
     if filename.startswith(('OLD_', 'OLD-', 'ORIGINAL_', 'ccc_', 'original_', 'Original_', 'replaced')):
@@ -275,17 +286,9 @@ def parse_samplesheet_filename(filename):
                     'is_dragen': 'DRAGEN' in name.upper(),
                     'filename': filename,
                 }
-            else:  # Short form (flowcell only)
-                flowcell = groups[0].upper()
-                return {
-                    'sequencer': None,
-                    'run_number': None,
-                    'flowcell': flowcell,
-                    'date': None,
-                    'run_name': flowcell,  # Use flowcell as run name
-                    'is_dragen': 'DRAGEN' in name.upper(),
-                    'filename': filename,
-                }
+            else:  # Short form (flowcell only) - skip these, no sequencer info
+                logger.debug("Skipping short-form samplesheet (no sequencer): %s", filename)
+                return None
     
     return None
 
@@ -376,6 +379,23 @@ def normalize_flowcell(flowcell):
     if len(fc) > 1 and fc[0] in ('A', 'B') and fc[1].isalnum():
         return fc[1:]
     return fc
+
+
+def _find_by_flowcell(runs, flowcell_norm):
+    """
+    Find an existing run entry by normalized flowcell.
+    Returns the key of the matching run, or None if no match.
+    """
+    if not flowcell_norm:
+        return None
+    fc_upper = flowcell_norm.upper()
+    for key, status in runs.items():
+        existing_norm = status.flowcell_normalized.upper() if status.flowcell_normalized else normalize_flowcell(
+            status.flowcell.upper() if status.flowcell else None
+        )
+        if existing_norm and existing_norm == fc_upper:
+            return key
+    return None
 
 
 def extract_run_name_from_dir(dir_name):
@@ -503,15 +523,21 @@ def check_staging_status(runs, lookback_days=LOOKBACK_DAYS):
             except OSError:
                 continue
             
-            # Create status if not from sequencer scan
-            if run_name not in runs:
-                logger.debug("  -> Creating new RunStatus for %s", run_name)
-                status = RunStatus(run_name, sequencer)
-                status.flowcell = flowcell.upper() if flowcell else None
-                status.flowcell_normalized = flowcell_norm.upper() if flowcell_norm else None
-                runs[run_name] = status
+            # Match to existing run by name or flowcell before creating a new entry
+            if run_name in runs:
+                status = runs[run_name]
+            else:
+                matched_key = _find_by_flowcell(runs, flowcell_norm)
+                if matched_key:
+                    logger.debug("  -> Matched %s to existing run %s by flowcell", run_name, matched_key)
+                    status = runs[matched_key]
+                else:
+                    logger.debug("  -> Creating new RunStatus for %s", run_name)
+                    status = RunStatus(run_name, sequencer)
+                    status.flowcell = flowcell.upper() if flowcell else None
+                    status.flowcell_normalized = flowcell_norm.upper() if flowcell_norm else None
+                    runs[run_name] = status
             
-            status = runs[run_name]
             status.demux_complete = True
             status.demux_complete_time = get_file_mtime(str(run_dir))
             
@@ -555,14 +581,20 @@ def check_delivery_status(runs, lookback_days=LOOKBACK_DAYS):
             except OSError:
                 continue
             
-            # Create status if not seen before
-            if run_name not in runs:
-                status = RunStatus(run_name, sequencer)
-                status.flowcell = flowcell.upper() if flowcell else None
-                status.flowcell_normalized = flowcell_norm.upper() if flowcell_norm else None
-                runs[run_name] = status
+            # Match to existing run by name or flowcell before creating a new entry
+            if run_name in runs:
+                status = runs[run_name]
+            else:
+                matched_key = _find_by_flowcell(runs, flowcell_norm)
+                if matched_key:
+                    logger.debug("  -> Matched %s to existing run %s by flowcell", run_name, matched_key)
+                    status = runs[matched_key]
+                else:
+                    status = RunStatus(run_name, sequencer)
+                    status.flowcell = flowcell.upper() if flowcell else None
+                    status.flowcell_normalized = flowcell_norm.upper() if flowcell_norm else None
+                    runs[run_name] = status
             
-            status = runs[run_name]
             status.delivered = True
             status.delivery_time = get_file_mtime(str(run_dir))
             
