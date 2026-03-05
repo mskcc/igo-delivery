@@ -437,6 +437,9 @@ def extract_run_name_from_dir(dir_name):
             if seq_name in known_sequencers:
                 sequencer = seq_name.lower()
                 flowcell = parts[1]
+    elif len(parts) == 1:
+        # Single part - treat as flowcell ID (e.g. "23FM7HLT3" or "A23FM7HLT3")
+        flowcell = parts[0]
     
     flowcell_normalized = normalize_flowcell(flowcell)
     
@@ -1033,6 +1036,76 @@ def merge_samplesheet_info(runs, samplesheet_runs):
                 runs[run_name_upper] = ss_status
 
 
+def _dedup_runs_by_flowcell(runs):
+    """
+    Remove duplicate run entries that share the same normalized flowcell.
+    Keeps the entry whose key contains a known sequencer name and merges
+    samplesheet/status info from the duplicate into it.
+    """
+    known_sequencers = {'DIANA', 'MICHELLE', 'RUTH', 'SCOTT', 'PEPE', 'AMELIE',
+                        'BONO', 'FAUCI', 'FAUCI2', 'JOHNSAWYERS', 'AYYAN', 'TOMS', 'VIC'}
+
+    # Group entries by normalized flowcell
+    fc_groups = {}
+    for key, status in runs.items():
+        fc_norm = (status.flowcell_normalized or "").upper()
+        if not fc_norm:
+            continue
+        fc_groups.setdefault(fc_norm, []).append(key)
+
+    keys_to_remove = []
+    for fc_norm, keys in fc_groups.items():
+        if len(keys) < 2:
+            continue
+
+        # Pick the canonical key: prefer the one with a sequencer in the name
+        canonical = None
+        duplicates = []
+        for k in keys:
+            parts = k.split('_')
+            if any(p in known_sequencers for p in parts):
+                canonical = k
+            else:
+                duplicates.append(k)
+
+        if not canonical:
+            # None have a sequencer name; keep whichever has the most info
+            canonical = keys[0]
+            duplicates = keys[1:]
+
+        canonical_status = runs[canonical]
+        for dup_key in duplicates:
+            dup_status = runs[dup_key]
+            # Merge samplesheets from duplicate into canonical
+            for ss in dup_status.samplesheets:
+                canonical_status.add_samplesheet(
+                    filename=ss['file'], mtime=ss['time'],
+                    is_dragen=ss['is_dragen'], date=dup_status.samplesheet_date
+                )
+            # Merge status flags (keep True if either is True)
+            if dup_status.run_started:
+                canonical_status.run_started = True
+                canonical_status.run_started_time = canonical_status.run_started_time or dup_status.run_started_time
+            if dup_status.sequencing_complete:
+                canonical_status.sequencing_complete = True
+                canonical_status.sequencing_complete_time = canonical_status.sequencing_complete_time or dup_status.sequencing_complete_time
+            if dup_status.demux_complete:
+                canonical_status.demux_complete = True
+                canonical_status.demux_complete_time = canonical_status.demux_complete_time or dup_status.demux_complete_time
+            if dup_status.delivered:
+                canonical_status.delivered = True
+                canonical_status.delivery_time = canonical_status.delivery_time or dup_status.delivery_time
+            if not canonical_status.sequencer and dup_status.sequencer:
+                canonical_status.sequencer = dup_status.sequencer
+            keys_to_remove.append(dup_key)
+            logger.info("Dedup: merged %s into %s (flowcell: %s)", dup_key, canonical, fc_norm)
+
+    for k in keys_to_remove:
+        del runs[k]
+
+    return len(keys_to_remove)
+
+
 def run_once(run_integrity=True):
     """Run the tracker once."""
     logger.info("Starting run tracker scan")
@@ -1064,6 +1137,11 @@ def run_once(run_integrity=True):
     merge_samplesheet_info(runs, samplesheet_runs)
     runs_with_samplesheets = [r for r, s in runs.items() if s.samplesheet_file]
     logger.info("Matched %d runs with sample sheets", len(runs_with_samplesheets))
+    
+    # Deduplicate entries that share the same flowcell
+    deduped = _dedup_runs_by_flowcell(runs)
+    if deduped:
+        logger.info("Removed %d duplicate run entries by flowcell", deduped)
     
     # Run integrity checks on delivered runs
     if run_integrity:
