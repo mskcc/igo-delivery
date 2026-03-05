@@ -58,8 +58,8 @@ SEQUENCERS = {
     "vic": ("vic", "RTAComplete.txt"),
 }
 
-# How far back to look for runs (days)
-LOOKBACK_DAYS = 7
+# How far back to look for runs (days) - can be overridden via environment variable
+LOOKBACK_DAYS = int(os.environ.get("LOOKBACK_DAYS", 30))
 
 
 class RunStatus:
@@ -319,12 +319,21 @@ def scan_samplesheets(lookback_days=LOOKBACK_DAYS):
             
             parsed = parse_samplesheet_filename(f.name)
             if not parsed:
+                logger.debug("Samplesheet not parsed: %s", f.name)
                 continue
             
             # Ensure uppercase for consistent matching
             run_name = parsed['run_name'].upper()
             flowcell = parsed['flowcell'].upper() if parsed['flowcell'] else None
             flowcell_norm = normalize_flowcell(flowcell)
+            
+            # Log at INFO for PEPE to debug
+            if 'PEPE' in run_name:
+                logger.info("PEPE DEBUG (samplesheet): %s -> run_name=%s, flowcell=%s, seq=%s", 
+                           f.name, run_name, flowcell, parsed['sequencer'])
+            else:
+                logger.debug("Samplesheet parsed: %s -> run_name=%s, flowcell=%s, seq=%s", 
+                            f.name, run_name, flowcell, parsed['sequencer'])
             
             # Create or update status
             if run_name not in runs:
@@ -478,15 +487,25 @@ def check_staging_status(runs, lookback_days=LOOKBACK_DAYS):
             normalized_name, flowcell, flowcell_norm, sequencer = extract_run_name_from_dir(raw_name)
             run_name = normalized_name.upper()  # Uppercase for consistent matching
             
+            # Log at INFO for PEPE to debug
+            if 'PEPE' in run_name:
+                logger.info("PEPE DEBUG (staging): raw=%s -> normalized=%s, run_name=%s, flowcell=%s, seq=%s", 
+                           raw_name, normalized_name, run_name, flowcell, sequencer)
+            else:
+                logger.debug("Staging scan: raw=%s -> normalized=%s, run_name=%s, flowcell=%s, seq=%s", 
+                            raw_name, normalized_name, run_name, flowcell, sequencer)
+            
             try:
                 mtime = datetime.fromtimestamp(run_dir.stat().st_mtime)
                 if mtime < cutoff and run_name not in runs:
+                    logger.debug("  -> Skipping (too old and not tracked)")
                     continue
             except OSError:
                 continue
             
             # Create status if not from sequencer scan
             if run_name not in runs:
+                logger.debug("  -> Creating new RunStatus for %s", run_name)
                 status = RunStatus(run_name, sequencer)
                 status.flowcell = flowcell.upper() if flowcell else None
                 status.flowcell_normalized = flowcell_norm.upper() if flowcell_norm else None
@@ -899,11 +918,24 @@ def merge_samplesheet_info(runs, samplesheet_runs):
     Uses case-insensitive matching for run names and flowcells.
     Also tries matching by normalized flowcell (without A/B prefix).
     """
+    logger.debug("Merging %d samplesheets into %d runs", len(samplesheet_runs), len(runs))
+    logger.debug("Run keys in runs dict: %s", list(runs.keys())[:20])  # First 20 for brevity
+    
     for ss_run_name, ss_status in samplesheet_runs.items():
         # Normalize run name to uppercase for matching
         run_name_upper = ss_run_name.upper()
         ss_flowcell_upper = ss_status.flowcell.upper() if ss_status.flowcell else None
         ss_flowcell_norm = ss_status.flowcell_normalized.upper() if ss_status.flowcell_normalized else normalize_flowcell(ss_flowcell_upper)
+        
+        # Log at INFO for PEPE to debug
+        if 'PEPE' in run_name_upper:
+            logger.info("PEPE DEBUG: Trying to match samplesheet run: %s (flowcell: %s)", run_name_upper, ss_flowcell_upper)
+            logger.info("PEPE DEBUG: Checking if %s in runs: %s", run_name_upper, run_name_upper in runs)
+            # Find similar keys
+            similar_keys = [k for k in runs.keys() if 'PEPE' in k]
+            logger.info("PEPE DEBUG: Similar keys in runs: %s", similar_keys)
+        else:
+            logger.debug("Trying to match samplesheet run: %s (flowcell: %s)", run_name_upper, ss_flowcell_upper)
         
         # Try exact match first (case-insensitive)
         if run_name_upper in runs:
@@ -916,12 +948,17 @@ def merge_samplesheet_info(runs, samplesheet_runs):
                     is_dragen=ss['is_dragen'],
                     date=ss_status.samplesheet_date
                 )
+            if 'PEPE' in run_name_upper:
+                logger.info("PEPE DEBUG: Direct match found for %s", run_name_upper)
+            else:
+                logger.debug("  -> Direct match found for %s", run_name_upper)
             if not existing.flowcell and ss_flowcell_upper:
                 existing.flowcell = ss_flowcell_upper
                 existing.flowcell_normalized = ss_flowcell_norm
             if not existing.sequencer and ss_status.sequencer:
                 existing.sequencer = ss_status.sequencer
         else:
+            logger.debug("  -> No direct match for %s, trying flowcell match...", run_name_upper)
             # Check if we can match by flowcell (try exact first, then normalized)
             matched = False
             for existing in runs.values():
