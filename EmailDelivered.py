@@ -71,7 +71,13 @@ def determineDataAccessContent(deliveryDesc):
     # check whether the investigator is within MSK or not
     if deliveryDesc.userName != "YOUR_MSKCC_ADDRESS":
         # BY recipe
-        if (("IMPACT" in recipe or "HEMEPACT" in recipe) and "-Mouse" not in recipe) or "CAS" in analysisType:
+        if recipe == "ST_Xenium":
+            email["content"] = (DeliveryConstants.xeniumContent) % (
+                updated_recipe,
+                deliveryDesc.requestId,
+                deliveryDesc.userName
+            )
+        elif (("IMPACT" in recipe or "HEMEPACT" in recipe) and "-Mouse" not in recipe) or "CAS" in analysisType:
             email["content"] = (DeliveryConstants.impactContent) % ( 
                 updated_recipe,
                 deliveryDesc.requestId,
