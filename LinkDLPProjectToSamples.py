@@ -217,16 +217,17 @@ def link_by_time(time):
 def main(args):
     """
     """
-    if (len(args) != 2):
-        print("Usage: python3 LinkDLPProjectToSamples.py REQUEST=<request> | TIME=<minutes>")
-    else:
-        if args[1].startswith("REQUEST="):
-            request = args[1][8:]
-            link_by_request(request)
-            
-        if args[1].startswith("TIME="):
+    if (isinstance(args, str) and args.startswith("REQUEST=")):
+        request = args[8:]
+        link_by_request(request)
+    elif (isinstance(args, list) and (args[1].startswith("REQUEST="))):
+        request = args[1][8:]
+        link_by_request(request)
+    elif (isinstance(args, list) and (args[1].startswith("TIME="))):
             time = args[1][5:]
             link_by_time(time)
+    else:
+        print("Usage: python3 LinkDLPProjectToSamples.py REQUEST=<request> | TIME=<minutes>")
 
 if __name__ == '__main__':
     args = sys.argv
