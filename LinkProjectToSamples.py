@@ -182,7 +182,7 @@ def link_by_request(reqID):
 
     if isDLP:
         request_id = "REQUEST={}".format(reqID)
-        LinkDLPProjectToSamples_test.main(request_id)
+        LinkDLPProjectToSamples.main(request_id)
         return
     # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
     elif(request_name == "Nanopore"):
