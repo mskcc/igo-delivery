@@ -145,7 +145,7 @@ def link_special_project_to_samples(reqID):
 def link_by_request(reqID):
     json_info = get_NGS_stats(reqID)
     stats = NGS_Stats(json_info)
-    print(vars(stats))
+    # print(vars(stats))
     labName = stats.labName
     request_name = stats.requestName # ie PEDPEG, SingleCell, etc.
     isDLP = stats.isDLP
@@ -178,17 +178,14 @@ def link_by_request(reqID):
     madeDir = []
     # create symbol links for each sample
     # if it is DLP only create link for the run not each sample
-    
-
+    run_sample_qc = get_qc_stats(reqID)
 
     if isDLP:
-        LinkDLPProjectToSamples.main(["REQUEST=", reqID])
+        request_id = "REQUEST={}".format(reqID)
+        LinkDLPProjectToSamples_test.main(request_id)
         return
-    else:
-        run_sample_qc = get_qc_stats(reqID)
-        
     # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
-    if (request_name == "Nanopore") and (not isDLP):
+    elif(request_name == "Nanopore"):
         # find project data folder
         parent_dir = NANOPORE_DELIVERY
         project_list = os.listdir(parent_dir)
@@ -201,7 +198,7 @@ def link_by_request(reqID):
                 cmd = "ln -sf {} {}".format(slink, dlink)
                 logger.info(cmd)
                 subprocess.run(cmd, shell=True)
-    elif (not isDLP):
+    else:
         for sample, runs in stats.samples.items():
             updated_runs = updateRun(runs, reqID, sample)
             for run in updated_runs:
