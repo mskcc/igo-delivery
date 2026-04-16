@@ -180,6 +180,8 @@ def link_by_request(reqID):
     # if it is DLP only create link for the run not each sample
     run_sample_qc = get_qc_stats(reqID)
 
+    # adding comment to test
+
     if isDLP:
         request_id = "REQUEST={}".format(reqID)
         LinkDLPProjectToSamples.main(request_id)
