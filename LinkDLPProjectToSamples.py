@@ -138,7 +138,9 @@ def link_by_request(reqID):
         for fastq_dir in fastq_directories:
             dlink = projDir + "/" + fastq_dir.split('/')[-2]
             slink = fastq_dir
-            cmd = "ln -sf {} {}".format(slink, dlink)
+            # -n: if dlink already exists as a symlink-to-directory, replace it
+            # in place instead of dereferencing and writing inside the source.
+            cmd = "ln -sfn {} {}".format(slink, dlink)
             logger.info(cmd)
             subprocess.run(cmd, shell=True)
     # if it is nanopore date, search under folder /igo/delivery/nanopore for project data path. The name for the folder should start with "Project_12345__"
