@@ -12,53 +12,67 @@ logger = setup_logging("DeliveryHelpers")
 
 class SampleDescription:
    def __init__(self, queryDict):
-        self.cmoId = queryDict["cmoId"]
-        self.sampleId = queryDict["baseId"]
+        self.cmoId = queryDict.get("cmoId") or ""
+        self.sampleId = queryDict.get("baseId") or ""
         self.passing_runs = []
         self.passing_dates = {}
+        if not self.cmoId or not self.sampleId:
+            logger.warning(
+                "Sample missing required ids (cmoId=%r, baseId=%r); record: %s",
+                self.cmoId, self.sampleId, queryDict
+            )
         if "basicQcs" not in queryDict:
-            logger.warning("No basicQcs in queryDict: %s", queryDict)
+            logger.warning("No basicQcs in queryDict for sample %s: %s", self.sampleId, queryDict)
             queryDict["basicQcs"] = []
         for qcStatus in queryDict["basicQcs"]:
-            if qcStatus["qcStatus"] != "Under-Review" and not qcStatus["qcStatus"].startswith("Failed"):
-                self.passing_runs = qcStatus["run"]
-                if "reviewedDates" in qcStatus:
-                    self.passing_dates[qcStatus["run"]] = max([x["timestamp"] for x in qcStatus["reviewedDates"]]) 
+            status = qcStatus.get("qcStatus", "")
+            run = qcStatus.get("run", "")
+            if status and status != "Under-Review" and not status.startswith("Failed"):
+                self.passing_runs = run
+                reviewed = qcStatus.get("reviewedDates") or []
+                if reviewed:
+                    self.passing_dates[run] = max(x["timestamp"] for x in reviewed if "timestamp" in x)
+
    def fullId(self):
         return self.cmoId + "_IGO_" + self.sampleId
 
 
 class DeliveryDescription:
     def __init__(self, queryDict):
-        self.requestId = queryDict["requestId"]
+        self.requestId = queryDict.get("requestId", "")
+        if not self.requestId:
+            logger.warning("Delivery missing requestId: %s", queryDict)
         self.pm = ""
-        if "projectManager" in queryDict and queryDict["projectManager"] != NO_PM:
-            self.pm = queryDict["projectManager"]
-        self.analysisRequested = queryDict["analysisRequested"]
-        self.deliveryDate = queryDict["deliveryDate"]
-        self.analysisType = ""
-        if "analysisType" in queryDict:
-            self.analysisType = queryDict["analysisType"]
+        pm = queryDict.get("projectManager")
+        if pm and pm != NO_PM:
+            self.pm = pm
+        self.analysisRequested = queryDict.get("analysisRequested", False)
+        self.deliveryDate = queryDict.get("deliveryDate")
+        self.analysisType = queryDict.get("analysisType", "")
         self.samples = []
         self.recipe = ""
         self.species = ""
         self.projectName = ""
-        if len(queryDict["samples"]) > 0:
-            for sample in queryDict["samples"]:
+        for sample in queryDict.get("samples") or []:
+            try:
                 self.samples.append(SampleDescription(sample))
-                if "recipe" in sample and sample["recipe"] != "":
-                    self.recipe = sample["recipe"]
-                if "species" in sample and sample["species"] != "":
-                    self.species = sample["species"]
+            except Exception as e:
+                logger.exception(
+                    "Skipping unparseable sample in request %s: %s (sample=%s)",
+                    self.requestId, e, sample
+                )
+                continue
+            if sample.get("recipe"):
+                self.recipe = sample["recipe"]
+            if sample.get("species"):
+                self.species = sample["species"]
         self.piEmail = ""
         self.investigatorEmail = ""
         self.additionalEmails = ""
         self.dataAccessEmails = ""
         self.userName = ""
-        self.requestType = ""
-        if "requestType" in queryDict:
-            self.requestType = queryDict["requestType"]
-        self.isNeoAg = queryDict["isNeoAg"]
+        self.requestType = queryDict.get("requestType", "")
+        self.isNeoAg = queryDict.get("isNeoAg", False)
 
     def setUserName(self, nicknameMapping):
         userName = self.piEmail.split("@")[0]
@@ -87,15 +101,22 @@ class DeliveryInfo:
         response = urllib.request.urlopen(req)
         deliveries = json.loads(response.read())
         for delivery in deliveries:
-            deliveryDescription = DeliveryDescription(delivery)
-            emailDetails = self.getEmailDetails(deliveryDescription.requestId, base64string)
-            deliveryDescription.piEmail = emailDetails["piEmail"]
-            deliveryDescription.investigatorEmail = emailDetails["investigatorEmail"]
-            deliveryDescription.additionalEmails = emailDetails["additionalEmails"]
-            deliveryDescription.dataAccessEmails = emailDetails["dataAccessEmails"]
-            deliveryDescription.projectName = emailDetails["projectName"]
-            deliveryDescription.setUserName(self.skiMapping)
-            self.deliveryDescriptions.append(deliveryDescription)
+            requestId = delivery.get("requestId", "<unknown>")
+            try:
+                deliveryDescription = DeliveryDescription(delivery)
+                emailDetails = self.getEmailDetails(deliveryDescription.requestId, base64string)
+                deliveryDescription.piEmail = emailDetails["piEmail"]
+                deliveryDescription.investigatorEmail = emailDetails["investigatorEmail"]
+                deliveryDescription.additionalEmails = emailDetails["additionalEmails"]
+                deliveryDescription.dataAccessEmails = emailDetails["dataAccessEmails"]
+                deliveryDescription.projectName = emailDetails["projectName"]
+                deliveryDescription.setUserName(self.skiMapping)
+                self.deliveryDescriptions.append(deliveryDescription)
+            except Exception as e:
+                logger.exception(
+                    "Skipping delivery %s after error: %s", requestId, e
+                )
+                continue
         return self.deliveryDescriptions
 
     def getEmailDetails(self, proj, base64string):
