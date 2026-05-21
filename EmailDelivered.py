@@ -1,4 +1,5 @@
 import base64
+import re
 import sys
 import copy
 import traceback
@@ -15,6 +16,17 @@ from splunk_logging import setup_logging, flush_and_shutdown
 logger = setup_logging("EmailDelivered")
 
 RNA_recipe_type = ["RNA_SMARTer-Cells", "RNA_SMARTer-RNA", "RNA_Capture", "User_RNA", "RNA_PolyA", "RNA_Ribodeplete"]
+
+
+def _sample_sort_key(name):
+    # Sort by trailing integer in the last "_"-separated chunk so e.g.
+    # "..._07951_B_2" sorts before "..._07951_B_10". Some sample names end in
+    # "...Pos-17825"; extract trailing digits there too. Fall back to lex order.
+    last = name.split("_")[-1]
+    m = re.search(r"(\d+)$", last)
+    if m:
+        return (0, int(m.group(1)), name)
+    return (1, name)
 
 # add additional recipients based on project(05500 only), recipe and analysis type
 def determineDataAccessRecipients(deliveryDesc, recipients, recipe, addressMap):
@@ -201,7 +213,7 @@ def main(mode, minutes):
                 email["content"] = email["content"] + DeliveryConstants.FOOTER
 
             else:
-                sampleList = "<br><br>Samples are:<br>"+"<br>".join(sorted(samples, key=lambda x: int(x.split("_")[-1])))
+                sampleList = "<br><br>Samples are:<br>"+"<br>".join(sorted(samples, key=_sample_sort_key))
                 email["content"] = email["content"] + sampleList + DeliveryConstants.FOOTER
 
             notifier.notify(recipe, delivered, email, toList, ccList)
