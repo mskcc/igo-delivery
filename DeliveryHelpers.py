@@ -4,6 +4,7 @@ import urllib.request
 import sys
 import smtplib
 from email.mime.text import MIMEText
+from email.charset import Charset, QP
 from DeliveryConstants import NO_PM, MSKCC_ADDRESS, DEFAULT_ADDRESS, SKI_SENDER_ADDRESS
 from splunk_logging import setup_logging
 
@@ -155,7 +156,9 @@ class DeliveryInfo:
 
 class ProdEmail():
     def notify(self, runType, delivered, email, mainContacts, additionalContacts):
-        msg = MIMEText(email["content"], "html")
+        cs = Charset("utf-8")
+        cs.body_encoding = QP
+        msg = MIMEText(email["content"], "html", cs)
         msg['Subject'] = email["subject"]
         msg['From'] = SKI_SENDER_ADDRESS
         msg['To'] = ",".join(mainContacts)
